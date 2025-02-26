@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34031.279
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GameEngine", "GameEngine\GameEngine.vcxproj", "{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Debug|x64.ActiveCfg = Debug|x64
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Debug|x64.Build.0 = Debug|x64
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Debug|x86.ActiveCfg = Debug|Win32
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Debug|x86.Build.0 = Debug|Win32
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Release|x64.ActiveCfg = Release|x64
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Release|x64.Build.0 = Release|x64
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Release|x86.ActiveCfg = Release|Win32
+		{0B2907A8-AD18-4BBD-89CD-5BDC00BCDBEC}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {67BBE075-D6B8-4FE2-B29B-D515E65E753F}
+	EndGlobalSection
+EndGlobal

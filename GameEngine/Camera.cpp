@@ -1,0 +1,53 @@
+#include "Camera.h"
+
+Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLfloat startPitch, GLfloat startMoveSpeed, GLfloat startTurnSpeed)
+{
+	position = startPosition;
+	up = startUp;
+	yaw = startYaw;
+	pitch = startPitch;
+	front = glm::vec3(0.0f, 0.0f, -1.0f);
+
+	moveSpeed = startMoveSpeed;
+	turnSpeed = startTurnSpeed;
+
+	update();
+}
+
+void Camera::keyControl(bool* keys)
+{
+	if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) {
+		position += front * moveSpeed;
+	}
+	if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN]) {
+		position -= front * moveSpeed;
+	}
+	if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) {
+		position += right * moveSpeed;
+	}
+	if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT]) {
+		position -= right * moveSpeed;
+	}
+
+}
+
+glm::mat4 Camera::calculateViewMatrix()
+{
+	glm::lookAt(position, position + front, up);
+}
+
+
+void Camera::update()
+{
+	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	front.y = sin(glm::radians(pitch));
+	front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+	front = glm::normalize(front);
+
+	right = glm::normalize(glm::cross(front, worldUp));
+	up = glm::normalize(glm::cross(right, front));
+}
+
+Camera::~Camera()
+{
+}

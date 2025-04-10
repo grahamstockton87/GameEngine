@@ -37,9 +37,11 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 	}
 	if (keys[GLFW_KEY_E]) {
 		roll += velocity + rollSpeed;
+		update();
 	}
 	if (keys[GLFW_KEY_Q]) {
 		roll -= velocity + rollSpeed;
+		update();
 	}
 	if (keys[GLFW_KEY_SPACE]) {
 		position += up * velocity;
@@ -47,6 +49,7 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {
 		position -= up * velocity;
 	}
+
 }
 
 void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat deltaTime)
@@ -88,10 +91,11 @@ void Camera::update()
 	up = glm::normalize(glm::cross(right, front));
 
 	// Roll effect: Rotate right and up around the front axis by the roll angle
-	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(roll), front);
+	glm::mat4 rollMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(roll), front);
 
-	right = glm::normalize(glm::vec3(rotation * glm::vec4(right, 0.0f)));
-	up = glm::normalize(glm::vec3(rotation * glm::vec4(up, 0.0f)));
+	// Apply the roll to the right and up vectors
+	right = glm::normalize(glm::vec3(rollMatrix * glm::vec4(right, 0.0f)));
+	up = glm::normalize(glm::vec3(rollMatrix * glm::vec4(up, 0.0f)));
 }
 
 

@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <stdio.h>
 
 #include <glew.h>
@@ -15,13 +17,22 @@
 #include "Shader.h"
 #include "Window.h"
 #include "Camera.h"
+#include "Texture.h"
+#include "Light.h"
 
 const float toRadians = 3.14159265f / 180.0f;
 
 Window mainWindow;
+
 std::vector<Mesh*> meshList;
+
 std::vector<Shader*> shaderList;
+
 Camera camera;
+
+Texture brickTexture;
+
+Light mainLight;
 
 GLfloat deltaTime = 0.0f;
 GLfloat lastTime = 0.0f;
@@ -39,10 +50,10 @@ float minSize = 0.1f;
 float angle = 0;
 
 // Vertex Shader code
-static const char* vShader = "Shaders/shader.vert";
+static const char* vShader = "Shaders/shaderVert.glsl";
 
 // Fragment Shader
-static const char* fShader = "Shaders/shader.frag";
+static const char* fShader = "Shaders/shaderFrag.glsl";
 void CreateObjects()
 {
     unsigned int indices2[]{
@@ -53,10 +64,11 @@ void CreateObjects()
     };
 
     GLfloat vertices2[] = {
-        -1.0f, -1.0f, 0.0f,
-        0.0f, -1.0f, 1.0f,
-        1.0f, -1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f
+    //    x      y     z       u     v
+        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,
+        0.0f, -1.0f, 1.0f,    0.5f, 0.0f,
+        1.0f, -1.0f, 0.0f,    1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,     0.5f, 1.0f
     };
 
     unsigned int indices[] = {
@@ -71,25 +83,26 @@ void CreateObjects()
 
 
     GLfloat vertices[] = {
-        // BOTTOM
-        1.0f, 1.0f, 0.0f,
-        -1.0f,1.0f, 0.0f,
-        -1.0f,-1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
+        // BOTTOM face (z = 0.0f)
+        1.0f,  1.0f, 0.0f,   1.0f, 1.0f,   // top-right
+       -1.0f,  1.0f, 0.0f,   0.0f, 1.0f,   // top-left
+       -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,   // bottom-left
+        1.0f, -1.0f, 0.0f,   1.0f, 0.0f,   // bottom-right
 
-        // TOP
-        1.0f, 1.0f, 1.0f,
-        -1.0f,1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f
+        // TOP face (z = 1.0f)
+        1.0f,  1.0f, 1.0f,   1.0f, 1.0f,   // top-right
+       -1.0f,  1.0f, 1.0f,   0.0f, 1.0f,   // top-left
+       -1.0f, -1.0f, 1.0f,   0.0f, 0.0f,   // bottom-left
+        1.0f, -1.0f, 1.0f,   1.0f, 0.0f    // bottom-right
     };
 
+
     Mesh* cube = new Mesh();
-    cube->CreateMesh(vertices, indices, 24, 36);
+    cube->CreateMesh(vertices, indices, 40, 36);
     meshList.push_back(cube);
 
     Mesh* pyramid = new Mesh();
-    pyramid->CreateMesh(vertices2, indices2, 24, 36);
+    pyramid->CreateMesh(vertices2, indices2, 20, 12);
     meshList.push_back(pyramid);
 
 }
@@ -109,8 +122,13 @@ int main() {
     CreateShaders();
 
     camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 10.0f, 5.0f);
+    
+    brickTexture = Texture("Textures/brick.png");
+    brickTexture.LoadTexture();
 
-    GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
+    mainLight = Light();
+
+    GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformAmbientIntensity = 0, uniformAmbientColor = 0;
     glm::mat4 projection = glm::perspective(45.0f, (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
     // loop until know closed
@@ -162,6 +180,10 @@ int main() {
         uniformModel = shaderList[0]->GetModelLocation();
         uniformProjection = shaderList[0]->GetProjectionLocation();
         uniformView = shaderList[0]->GetViewLocation();
+        uniformAmbientColor = shaderList[0]->GetAmbientColorLocation();
+        uniformAmbientIntensity = shaderList[0]->GetAmbientIntensityLocation();
+
+        mainLight.UseLight(uniformAmbientIntensity, uniformAmbientColor);
 
         // translate first then move order matters
         glm::mat4 model;
@@ -172,6 +194,7 @@ int main() {
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+        brickTexture.UseTexture();
         meshList[0]->RenderMesh();
 
         model = glm::mat4();

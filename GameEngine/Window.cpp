@@ -123,7 +123,7 @@ void Window::handleMouse(GLFWwindow* window, double xPos, double yPos)
 	}
 
 	theWindow->xChange = xPos - theWindow->lastX;
-	theWindow->xChange = theWindow->lastY - yPos;
+	theWindow->yChange = theWindow->lastY - yPos;
 
 	theWindow->lastX = xPos;
 	theWindow->lastY = yPos;

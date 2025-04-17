@@ -1,4 +1,5 @@
 #include "Window.h"
+#include <iostream>
 
 Window::Window() {
 	width = 800;
@@ -18,6 +19,8 @@ Window::Window(GLint windowWidth, GLint windowHeight) {
 
 	xChange = 0.0f;
 	yChange = 0.0f;
+
+	yChangeScroll = 0.0f;
 }
 int Window::Initialize() {
 	//initialize glfw 
@@ -88,6 +91,13 @@ GLfloat Window::getYChange()
 
 }
 
+GLfloat Window::getYScrollChange()
+{
+	GLfloat theChange = yChangeScroll;
+	yChangeScroll = 0.0f;
+	return theChange;
+}
+
 
 Window::~Window()
 {
@@ -129,8 +139,18 @@ void Window::handleMouse(GLFWwindow* window, double xPos, double yPos)
 	theWindow->lastY = yPos;
 }
 
+void Window::handleScroll(GLFWwindow* window, double xOffset, double yOffset)
+{
+	Window* theWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	// Update the last scroll position
+	theWindow->yChangeScroll = -1 * yOffset;
+
+	//std::cout << "FOV Scroll Change: " << yOffset << std::endl;
+}
+
 void Window::createCallbacks()
 {
 	glfwSetKeyCallback(mainWindow, handleKeys);
 	glfwSetCursorPosCallback(mainWindow, handleMouse);
+	glfwSetScrollCallback(mainWindow, handleScroll);
 }

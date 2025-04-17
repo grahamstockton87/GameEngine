@@ -4,7 +4,7 @@ Camera::Camera()
 {
 }
 
-Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLfloat startPitch, GLfloat startMoveSpeed, GLfloat startTurnSpeed, GLfloat startRollSpeed)
+Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLfloat startPitch, GLfloat startMoveSpeed, GLfloat startTurnSpeed, GLfloat startRollSpeed, GLfloat startFov)
 {
 	position = startPosition;
 	worldUp = startUp;
@@ -16,6 +16,8 @@ Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLf
 	moveSpeed = startMoveSpeed;
 	turnSpeed = startTurnSpeed;
 	rollSpeed = startRollSpeed;
+
+	fov = startFov;
 
 	update();
 }
@@ -52,7 +54,7 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 
 }
 
-void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat deltaTime)
+void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, GLfloat deltaTime)
 {
 	GLfloat velocity = turnSpeed * deltaTime;
 	xChange *= velocity;
@@ -60,6 +62,12 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat deltaTime)
 
 	yaw += xChange;
 	pitch += yChange;
+
+	// Only update fov if yScrollChange is not zero
+	if (yScrollChange != 0.0f) {
+		fov += yScrollChange * deltaTime * 10.0f;
+		fov = glm::clamp(fov, 30.0f, 90.0f);  // Clamp the fov to stay within the 30-90 range
+	}
 
 	if (pitch > 89.0f) {
 		pitch = 89.0f;
@@ -72,9 +80,24 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat deltaTime)
 
 }
 
+glm::vec3 Camera::getCameraPostion()
+{
+	return position;
+}
+
 glm::mat4 Camera::calculateViewMatrix()
 {
 	return glm::lookAt(position, position + front, up);
+}
+
+GLfloat Camera::getFov()
+{
+	return fov;
+}
+
+void Camera::setFov(GLfloat Infov)
+{
+	fov = Infov;
 }
 
 
@@ -96,6 +119,8 @@ void Camera::update()
 	// Apply the roll to the right and up vectors
 	right = glm::normalize(glm::vec3(rollMatrix * glm::vec4(right, 0.0f)));
 	up = glm::normalize(glm::vec3(rollMatrix * glm::vec4(up, 0.0f)));
+
+
 }
 
 

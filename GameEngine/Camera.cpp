@@ -1,5 +1,6 @@
 #include "Camera.h"
-
+#include <iostream>
+#include "Mesh.h"
 Camera::Camera()
 {
 }
@@ -19,17 +20,24 @@ Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLf
 
 	fov = startFov;
 
+	isGrounded = false;
+
 	update();
 }
 
 void Camera::keyControl(bool* keys, GLfloat deltaTime)
 {
+	previousPosition = position;
+
 	GLfloat velocity = moveSpeed * deltaTime;
 	if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) {
-		position += front * velocity;
+		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
+		position += flatFront * velocity;
+
 	}
 	if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN]) {
-		position -= front * velocity;
+		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
+		position -= flatFront * velocity;
 	}
 	if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) {
 		position += right * velocity;
@@ -46,10 +54,13 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 		update();
 	}
 	if (keys[GLFW_KEY_SPACE]) {
-		position += up * velocity;
+		if (isGrounded) {
+			verticalVelocity = 20.0f;
+			isGrounded = false;
+		}
 	}
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {
-		position -= up * velocity;
+		position.y -= velocity;
 	}
 
 }
@@ -80,9 +91,78 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChang
 
 }
 
+void Camera::updatePhysics(GLfloat deltaTime)
+{
+	float height = 2.0f;
+	float floor = 0.0f;
+
+	//std::cout << "Postion y " << position.y << std::endl;
+	//std::cout << isGrounded;
+	
+	if (position.y > floor + height || !isGrounded) {
+		isGrounded = false;
+		verticalVelocity += gravity * deltaTime;
+		position.y += verticalVelocity * deltaTime + 0.5f * gravity * deltaTime * deltaTime;
+
+	}
+	if (position.y < floor + height){
+		isGrounded = true;
+		position.y = height;
+	}
+}
+
+void Camera::boxCollision(Mesh::BoundingBox box)
+{
+	if (!intersects(box)) return;
+
+	glm::vec3 delta = position - previousPosition;
+
+	// Resolve Y-axis (vertical) collision
+	if (previousPosition.y >= box.max.y && position.y < box.max.y) {
+		// Landing on top of the box
+		isGrounded = true;
+		verticalVelocity = 0.0f;
+		position.y = box.max.y;
+	}
+	else {
+		// Not a top collision — resolve sides
+		if (delta.x != 0 && previousPosition.x <= box.min.x && position.x > box.min.x) {
+			position.x = previousPosition.x;
+		}
+		if (delta.x != 0 && previousPosition.x >= box.max.x && position.x < box.max.x) {
+			position.x = previousPosition.x;
+		}
+
+		if (delta.z != 0 && previousPosition.z <= box.min.z && position.z > box.min.z) {
+			position.z = previousPosition.z;
+		}
+		if (delta.z != 0 && previousPosition.z >= box.max.z && position.z < box.max.z) {
+			position.z = previousPosition.z;
+		}
+
+		// Optional: handle vertical head bump
+		if (delta.y > 0 && previousPosition.y <= box.min.y && position.y > box.min.y) {
+			position.y = previousPosition.y;
+			verticalVelocity = 0.0f; // stop rising if bumping
+		}
+	}
+}
+
+
+
+void Camera::setPostion(glm::vec3 pos)
+{
+	position = pos;
+}
+
 glm::vec3 Camera::getCameraPostion()
 {
 	return position;
+}
+
+glm::vec3 Camera::getCameraDirection()
+{
+	return glm::normalize(front);
 }
 
 glm::mat4 Camera::calculateViewMatrix()
@@ -122,6 +202,18 @@ void Camera::update()
 
 
 }
+bool Camera::intersects(Mesh::BoundingBox box)
+{
+	const float radius = 0.5f; // Adjust based on how wide your camera/player is
+
+	return (position.x >= box.min.x &&
+		position.x <= box.max.x &&
+		position.y >= box.min.y &&
+		position.y <= box.max.y &&
+		position.z >= box.min.z &&
+		position.z <= box.max.z);
+}
+
 
 
 Camera::~Camera()

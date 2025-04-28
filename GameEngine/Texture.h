@@ -1,5 +1,5 @@
 #pragma once
-#include <glew.h>
+#include <GL/glew.h>
 #include "stb_image.h"
 #include <string>
 
@@ -9,7 +9,9 @@ public:
 	Texture();
 	Texture(std::string fileLoc);
 	
-	void LoadTexture();
+	bool LoadTexture();
+	bool LoadTextureA();
+
 	void UseTexture();
 	void ClearTexture();
 

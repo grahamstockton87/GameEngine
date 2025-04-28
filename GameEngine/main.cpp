@@ -2,11 +2,15 @@
 
 #include <stdio.h>
 
-#include <glew.h>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <mat4x4.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
 
 #include <iostream>
 #include <fstream>
@@ -22,24 +26,31 @@
 #include "DirectionalLight.h"
 #include "PointLight.h"
 #include "Material.h"
+#include "Model.h"
 
 const float toRadians = 3.14159265f / 180.0f;
+
+GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0, uniformSpecularIntensity = 0, uniformShininess = 0, uniformDirection = 0, uniformDiffuseIntensity = 0;
 
 Window mainWindow;
 
 std::vector<Mesh*> meshList;
 
 std::vector<Shader*> shaderList;
+Shader directionalShadowShader;
 
-Camera camera;
 
 Texture brickTexture;
+Texture transparent;
 
 DirectionalLight mainLight;
 PointLight pointLights[MAX_POINT_LIGHTS];
+SpotLight spotLights[MAX_SPOT_LIGHTS];
 
 Material shinyMaterial;
 Material dullMaterial;
+
+Model dog;
 
 GLfloat deltaTime = 0.0f;
 GLfloat lastTime = 0.0f;
@@ -88,50 +99,104 @@ void calcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloa
 }
 
 
-void CreateObjects()
-{
+void CreateShaders() {
+    Shader* shader1 = new Shader();
+    shader1->CreateFromFiles(vShader, fShader);
+    shaderList.push_back(shader1);
+
+    directionalShadowShader = Shader();
+    directionalShadowShader.CreateFromFiles("Shaders/directional_shadow_map_vert.glsl", "Shaders/directional_shadow_map_frag.glsl");
+}
+void render() {
+
+}
+int main() {
+    
+    mainWindow = Window(1200, 800);
+    mainWindow.Initialize();
+
+// OBJECTS --------------------------------------------------------------------------------
     unsigned int indices2[]{
-        0, 3, 1,
-        1, 3, 2,
-        2, 3, 0,
-        0, 1, 2
+    0, 3, 1,
+    1, 3, 2,
+    2, 3, 0,
+    0, 1, 2
     };
 
     GLfloat vertices2[] = {
-    //    x      y     z       u     v        N
-        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,    0.0f,0.0f,0.0f,
-        0.0f, -1.0f, 1.0f,    0.5f, 0.0f,    0.0f,0.0f,0.0f,
-        1.0f, -1.0f, 0.0f,    1.0f, 0.0f,    0.0f,0.0f,0.0f,
-        0.0f, 1.0f, 0.0f,     0.5f, 1.0f,    0.0f,0.0f,0.0f
+        //    x      y     z       u     v        N
+            -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,    0.0f,0.0f,0.0f,
+            0.0f, -1.0f, 1.0f,    0.5f, 0.0f,    0.0f,0.0f,0.0f,
+            1.0f, -1.0f, 0.0f,    1.0f, 0.0f,    0.0f,0.0f,0.0f,
+            0.0f, 1.0f, 0.0f,     0.5f, 1.0f,    0.0f,0.0f,0.0f
     };
 
     calcAverageNormals(indices2, 12, vertices2, 32, 8, 5);
 
     unsigned int indices[] = {
-        4, 5, 6,  6, 7, 4, // TOP FACE
-        0, 1, 2,  2, 3, 0, // Bottom Face
-        1, 5, 4,  4, 0, 1, // RIGHT FACE
-        6, 2, 1,  5, 6, 1, // BACK FACE
-        6, 7, 3,  3, 2, 6, //LEFT FACE
-        4, 7, 3,  3, 0, 4
+        // front face (z = +1)
+        0, 1, 2,  2, 3, 0,        // bottom-left, bottom-right, top-right, top-left
+
+        // back face (z = -1)
+        4, 5, 6,  6, 7, 4,        // needs reversed winding
+
+        // left face (x = -1)
+        8, 9, 10, 10, 11, 8,
+
+        // right face (x = +1)
+        12, 14, 13, 14, 12, 15,   // fixed: CCW winding
+
+        // top face (y = +1)
+        16, 18, 17, 18, 16, 19,   // fixed: CCW winding
+
+        // bottom face (y = -1)
+        20, 21, 22, 22, 23, 20
     };
 
-    
+
+
+
     GLfloat vertices[] = {
-      // x      y       z       u    v         nx    ny    nz
-        1.0f,  1.0f, -1.0f,   1.0f, 1.0f,    0.0f, 0.0f, 0.0f, // top-right
-       -1.0f,  1.0f, -1.0f,   0.0f, 1.0f,    0.0f, 0.0f, 0.0f, // top-left
-       -1.0f, -1.0f, -1.0f,   0.0f, 0.0f,    0.0f, 0.0f, 0.0f, // bottom-left
-        1.0f, -1.0f, -1.0f,   1.0f, 0.0f,    0.0f, 0.0f, 0.0f, // bottom-right
+        // FRONT (+Z)
+        -1, -1,  1,   0, 0,   0,  0, -1,
+         1, -1,  1,   1, 0,   0,  0, -1,
+         1,  1,  1,   1, 1,   0,  0, -1,
+        -1,  1,  1,   0, 1,   0,  0, -1,
 
-        // TOP face (z = 1.0f)
-        1.0f,  1.0f, 1.0f,   1.0f, 1.0f,    0.0f, 0.0f, 0.0f, // top-right
-       -1.0f,  1.0f, 1.0f,   0.0f, 1.0f,    0.0f, 0.0f, 0.0f, // top-left
-       -1.0f, -1.0f, 1.0f,   0.0f, 0.0f,    0.0f, 0.0f, 0.0f, // bottom-left
-        1.0f, -1.0f, 1.0f,   1.0f, 0.0f,    0.0f, 0.0f, 0.0f  // bottom-right
+        // BACK (-Z)
+         1, -1, -1,   0, 0,   0,  0, 1,
+        -1, -1, -1,   1, 0,   0,  0, 1,
+        -1,  1, -1,   1, 1,   0,  0, 1,
+         1,  1, -1,   0, 1,   0,  0, 1,
+
+         // LEFT (-X)
+         -1, -1, -1,   0, 0,   1,  0,  0,
+         -1, -1,  1,   1, 0,   1,  0,  0,
+         -1,  1,  1,   1, 1,   1,  0,  0,
+         -1,  1, -1,   0, 1,   1,  0,  0,
+
+         // RIGHT (+X)
+          1, -1,  1,   0, 0,  -1,  0,  0,
+          1, -1, -1,   1, 0,  -1,  0,  0,
+          1,  1, -1,   1, 1,  -1,  0,  0,
+          1,  1,  1,   0, 1,  -1,  0,  0,
+
+          // TOP (+Y)
+          -1,  1,  1,   0, 0,   0, -1,  0,
+           1,  1,  1,   1, 0,   0, -1,  0,
+           1,  1, -1,   1, 1,   0, -1,  0,
+          -1,  1, -1,   0, 1,   0, -1,  0,
+
+          // BOTTOM (-Y)
+          -1, -1, -1,   0, 0,   0, 1,  0,
+           1, -1, -1,   1, 0,   0, 1,  0,
+           1, -1,  1,   1, 1,   0, 1,  0,
+          -1, -1,  1,   0, 1,   0, 1,  0
     };
 
-    calcAverageNormals(indices, 36, vertices, 64, 8, 5);
+
+
+    //calcAverageNormals(indices, 36, vertices, 192, 8, 5);
 
     unsigned int floorIndices[]{
         0, 2, 1,
@@ -145,44 +210,38 @@ void CreateObjects()
         10.0f, 0.0f, 10.0f,     10.0f, 10.0f,   0.0f, -1.0f, 0.0f
     };
 
-    
 
-    Mesh* cube = new Mesh();
-    cube->CreateMesh(vertices, indices, 64, 36);
+    Mesh* cube = new Mesh(vertices, indices, 192, 36);
+    cube->CreateMesh();
     meshList.push_back(cube);
 
-    Mesh* pyramid = new Mesh();
-    pyramid->CreateMesh(vertices2, indices2, 32, 12);
+    Mesh* pyramid = new Mesh(vertices2, indices2, 32, 12);
+    pyramid->CreateMesh();
     meshList.push_back(pyramid);
 
-    Mesh* floor = new Mesh();
-    floor->CreateMesh(floorVertices, floorIndices, 32, 6);
+    Mesh* floor = new Mesh(floorVertices, floorIndices, 32, 6);
+    floor->CreateMesh();
     meshList.push_back(floor);
 
-}
-
-
-void CreateShaders() {
-    Shader* shader1 = new Shader();
-    shader1->CreateFromFiles(vShader, fShader);
-    shaderList.push_back(shader1);
-}
-
-int main() {
-    
-    mainWindow = Window(800, 600);
-    mainWindow.Initialize();
-    CreateObjects();
     CreateShaders();
 
-    camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 10.0f, 5.0f, 45.0f);
+    Camera camera(glm::vec3(10.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 100.0f, 5.0f, 45.0f);
     
+    // MATERIALS  -------------------------------------------------------------------------------------------
     shinyMaterial = Material(1.0f, 128);
     dullMaterial = Material(0.3f, 4);
 
+    // TEXTURES --------------------------------------------------------------------------------------------
     brickTexture = Texture("Textures/brick.png");
-    brickTexture.LoadTexture();
+    brickTexture.LoadTextureA();
 
+    transparent = Texture("Textures/transparent.png");
+    transparent.LoadTextureA();
+
+    dog = Model();
+    dog.LoadModel("Models/dog.obj");
+
+    // LIGHTS --------------------------------------------------------------------------------------------
     mainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
                                  0.0f, 0.0f, 
                                  2.0f, -1.0f, -2.0f);
@@ -197,11 +256,17 @@ int main() {
                                 4.0f, 2.0f, 0.0f,
                                 0.3f, 0.1f, 0.1f);
     pointLightCount++;
-  
 
-    GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0, uniformSpecularIntensity = 0, uniformShininess = 0, uniformDirection = 0, uniformDiffuseIntensity = 0;
+    unsigned int spotLightCount = 0;
+    spotLights[0] = SpotLight(1.0f, 1.0f, 1.0f, // color
+                              0.0f, 5.0f, // ambient diffuse
+                              4.0f, 1.0f, 0.0f, // position
+                              0.0f, -1.0f, 0.0f, // direction
+                              0.3f, 0.1f, 0.1f, // Equation
+                              40.0f); // Angle
+    spotLightCount++;
     
-
+    Assimp::Importer importer;
     // loop until know closed
 
     while (!mainWindow.getShouldClose()) {
@@ -215,38 +280,49 @@ int main() {
         // get handle user event inputs
         glfwPollEvents();
 
-        camera.keyControl(mainWindow.getKeys(), deltaTime);
-        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), deltaTime);
+  
+        //for (Mesh* mesh: meshList) {
+        //    camera.boxCollision(mesh->box);
+        //}
+        
+        //std::cout << "Min = " << meshList[0]->box.min.x << meshList[0]->box.min.y << meshList[0]->box.min.z << std::endl;
+        //std::cout << "Max = " << meshList[0]->box.max.x << meshList[0]->box.max.y << meshList[0]->box.max.z << std::endl;
+
         //update();
         glm::mat4 projection = glm::perspective(camera.getFov(), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
         //std::cout << camera.getFov() << std::endl;
-        if (direction) {
-            triOffset += triIncrement;
-        }
-        else {
-            triOffset -= triIncrement;
-        }
+        //if (direction) {
+        //    triOffset += triIncrement;
+        //}
+        //else {
+        //    triOffset -= triIncrement;
+        //}
 
-        if (abs(triOffset) >= triMaxOffset) {
-            direction = !direction;
-        }
-        if (sizeDirection) {
-            curSize += 0.001f;
-        }
-        else {
-            curSize -= 0.001f;
-        }
-        if (curSize >= maxSize || curSize <= minSize) {
-            sizeDirection = !sizeDirection;
-        }
-        if (angle < 360) {
-            angle += 1;
-        }
-        else {
-            angle = 0;
-        }
+        //if (abs(triOffset) >= triMaxOffset) {
+        //    direction = !direction;
+        //}
+        //if (sizeDirection) {
+        //    curSize += 0.001f;
+        //}
+        //else {
+        //    curSize -= 0.001f;
+        //}
+        //if (curSize >= maxSize || curSize <= minSize) {
+        //    sizeDirection = !sizeDirection;
+        //}
+        //if (angle < 360) {
+        //    angle += 1;
+        //}
+        //else {
+        //    angle = 0;
+        //}
+        // 
+      
         // clear window
+        camera.keyControl(mainWindow.getKeys(), deltaTime);
+        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), deltaTime);
+        camera.updatePhysics(deltaTime);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -259,14 +335,20 @@ int main() {
         uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
         uniformShininess = shaderList[0]->GetShininessLocation();
 
+        glm::vec3 lowerLight = camera.getCameraPostion();
+        lowerLight.y -= 0.1f;
+        spotLights[0].SetFlash(lowerLight, camera.getCameraDirection());
+
         //shaderList[0]->SetDirectionalLight(&mainLight);
         shaderList[0]->SetPointLights(pointLights, pointLightCount);
+        shaderList[0]->SetSpotLights(spotLights, spotLightCount);
       
+        // BOX
         // translate first then move order matters
         glm::mat4 model;
         //model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, -1.0f, -3.0f));
-        model = glm::rotate(model, 0 * toRadians, glm::vec3(1.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        //model = glm::rotate(model, 0 * toRadians, glm::vec3(1.0f, 1.0f, 0.0f));
         //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
@@ -274,24 +356,36 @@ int main() {
         glUniform3f(uniformEyePosition, camera.getCameraPostion().x, camera.getCameraPostion().y, camera.getCameraPostion().z);
         brickTexture.UseTexture();
         shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-        meshList[0]->RenderMesh();
 
+        //camera.boxCollision(meshList[0]->box);
+
+        // PYRAMID
         model = glm::mat4();
         model = glm::translate(model, glm::vec3(0.0f, 1.0f, -3.0f));
         model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+
         //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
         meshList[1]->RenderMesh();
 
+        // FLOOR
         model = glm::mat4();
-        model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         //model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
         //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
         meshList[2]->RenderMesh();
 
+        // DOG
+        model = glm::mat4();
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, -90 * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+        shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+        dog.RenderModel();
 
         glBindVertexArray(0);
 

@@ -66,11 +66,24 @@ float CalcDirectionalShadowFactor(DirectionalLight light){
     vec3 projCoords = DirectionalLightSpacePos.xyz / DirectionalLightSpacePos.w;
     projCoords = (projCoords * 0.5) + 0.5;
 
+    // Clamp to prevent texture sampling outside
+    projCoords.xy = clamp(projCoords.xy, 0.0, 1.0);
+    
+    if(projCoords.z > 1.0)
+        return 0.0; // Outside light far plane
+
     float closetDepth = texture(directionalShadowMap, projCoords.xy).r;
     float currentDepth = projCoords.z;
 
-    float shadow = currentDepth > closetDepth ? 1.0 : 0.0;
+    vec3 normal = normalize(Normal);
+    vec3 lightDir = normalize(light.direction);
+    float bias = max(0.5 * (1-dot(normal,lightDir)), 0.005);
 
+    float shadow = currentDepth - bias > closetDepth ? 1.0 : 0.0;
+
+    if (projCoords.z > 1.0)
+        shadow = 0.0;
+    
     return shadow;
 }
 

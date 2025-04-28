@@ -30,9 +30,15 @@
 
 const float toRadians = 3.14159265f / 180.0f;
 
+// lights class list
+unsigned int pointLightCount = 0;
+unsigned int spotLightCount = 0;
+
 GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0, uniformSpecularIntensity = 0, uniformShininess = 0, uniformDirection = 0, uniformDiffuseIntensity = 0;
 
 Window mainWindow;
+
+Camera camera(glm::vec3(10.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 100.0f, 5.0f, 45.0f);
 
 std::vector<Mesh*> meshList;
 
@@ -107,9 +113,99 @@ void CreateShaders() {
     directionalShadowShader = Shader();
     directionalShadowShader.CreateFromFiles("Shaders/directional_shadow_map_vert.glsl", "Shaders/directional_shadow_map_frag.glsl");
 }
-void render() {
+void RenderScene() {
+    // BOX
+    // translate first then move order matters
+
+    glm::mat4 model;
+    model = glm::translate(model, glm::vec3(0.0f, 5.0f, 0.0f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    brickTexture.UseTexture();
+    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    meshList[0]->RenderMesh();
+
+    //camera.boxCollision(meshList[0]->box);
+
+    // PYRAMID
+    model = glm::mat4();
+    model = glm::translate(model, glm::vec3(0.0f, 3.0f, -3.0f));
+    model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    meshList[1]->RenderMesh();
+
+    // FLOOR
+    model = glm::mat4();
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    meshList[2]->RenderMesh();
+
+    // DOG
+    model = glm::mat4();
+    model = glm::translate(model, glm::vec3(0.0f, 2.0f, 0.0f));
+    model = glm::rotate(model, -90 * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    dog.RenderModel();
+
+    glBindVertexArray(0);
+}
+void DirectionalShadowPass(DirectionalLight* light) {
+    directionalShadowShader.UseShader();
+
+    glViewport(0, 0, light->GetShadowMap()->GetShadowWidth(), light->GetShadowMap()->GetShadowHeight());
+
+    light->GetShadowMap()->Write();
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    uniformModel = directionalShadowShader.GetModelLocation();
+    glm::mat4 lightTransform = light->CalculateLightTransform();
+    directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
+
+
+    RenderScene();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
+    shaderList[0]->UseShader();
+    uniformModel = shaderList[0]->GetModelLocation();
+    uniformProjection = shaderList[0]->GetProjectionLocation();
+    uniformView = shaderList[0]->GetViewLocation();
+    uniformEyePosition = shaderList[0]->GetEyePositionLocation();
+    uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
+    uniformShininess = shaderList[0]->GetShininessLocation();
+
+    glViewport(0, 0, 1366, 768);
+
+    // clear window
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+    glUniform3f(uniformEyePosition, camera.getCameraPostion().x, camera.getCameraPostion().y, camera.getCameraPostion().z);
+
+    shaderList[0]->SetDirectionalLight(&mainLight);
+    shaderList[0]->SetPointLights(pointLights, pointLightCount);
+    shaderList[0]->SetSpotLights(spotLights, spotLightCount);
+    glm::mat4 lightTransform = mainLight.CalculateLightTransform();
+    shaderList[0]->SetDirectionalLightTransform(&lightTransform);
+
+    mainLight.GetShadowMap()->Read(GL_TEXTURE1);
+    shaderList[0]->SetTexture(0);
+    shaderList[0]->SetDirectionalShadowMap(1);
+   
+    glm::vec3 lowerLight = camera.getCameraPostion();
+    lowerLight.y -= 0.1f;
+    spotLights[0].SetFlash(lowerLight, camera.getCameraDirection());
+
+    RenderScene();
 
 }
+
 int main() {
     
     mainWindow = Window(1200, 800);
@@ -224,8 +320,6 @@ int main() {
     meshList.push_back(floor);
 
     CreateShaders();
-
-    Camera camera(glm::vec3(10.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 100.0f, 5.0f, 45.0f);
     
     // MATERIALS  -------------------------------------------------------------------------------------------
     shinyMaterial = Material(1.0f, 128);
@@ -242,22 +336,25 @@ int main() {
     dog.LoadModel("Models/dog.obj");
 
     // LIGHTS --------------------------------------------------------------------------------------------
-    mainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
-                                 0.0f, 0.0f, 
-                                 2.0f, -1.0f, -2.0f);
-    unsigned int pointLightCount = 0;
-    pointLights[0] = PointLight(1.0f, 0.0f, 0.0f,
+    mainLight = DirectionalLight(1024, 1024,
+                                1.0f, 1.0f, 1.0f, 
+                                 0.1f, 0.6f, 
+                                 0.0f, -7.0f, -1.0f);
+
+    pointLights[0] = PointLight(1024, 1024,
+                                1.0f, 0.0f, 0.0f,
                                 0.0f, 1.0f,
                                 -4.0f, 2.0f, 0.0f,
                                 0.3f, 0.1f, 0.1f);
     pointLightCount++;
-    pointLights[1] = PointLight(0.0f, 0.0f, 1.0f,
+    pointLights[1] = PointLight(1024, 1024, 
+                                0.0f, 0.0f, 1.0f,
                                 0.0f, 1.0f,
                                 4.0f, 2.0f, 0.0f,
                                 0.3f, 0.1f, 0.1f);
     pointLightCount++;
 
-    unsigned int spotLightCount = 0;
+    
     spotLights[0] = SpotLight(1.0f, 1.0f, 1.0f, // color
                               0.0f, 5.0f, // ambient diffuse
                               4.0f, 1.0f, 0.0f, // position
@@ -324,70 +421,8 @@ int main() {
         camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), deltaTime);
         camera.updatePhysics(deltaTime);
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        shaderList[0]->UseShader();
-        uniformModel = shaderList[0]->GetModelLocation();
-        uniformProjection = shaderList[0]->GetProjectionLocation();
-        uniformView = shaderList[0]->GetViewLocation();
-        uniformEyePosition = shaderList[0]->GetEyePositionLocation();
-        uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
-        uniformShininess = shaderList[0]->GetShininessLocation();
-
-        glm::vec3 lowerLight = camera.getCameraPostion();
-        lowerLight.y -= 0.1f;
-        spotLights[0].SetFlash(lowerLight, camera.getCameraDirection());
-
-        //shaderList[0]->SetDirectionalLight(&mainLight);
-        shaderList[0]->SetPointLights(pointLights, pointLightCount);
-        shaderList[0]->SetSpotLights(spotLights, spotLightCount);
-      
-        // BOX
-        // translate first then move order matters
-        glm::mat4 model;
-        //model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        //model = glm::rotate(model, 0 * toRadians, glm::vec3(1.0f, 1.0f, 0.0f));
-        //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-        glUniform3f(uniformEyePosition, camera.getCameraPostion().x, camera.getCameraPostion().y, camera.getCameraPostion().z);
-        brickTexture.UseTexture();
-        shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-
-        //camera.boxCollision(meshList[0]->box);
-
-        // PYRAMID
-        model = glm::mat4();
-        model = glm::translate(model, glm::vec3(0.0f, 1.0f, -3.0f));
-        model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
-
-        //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-        dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-        meshList[1]->RenderMesh();
-
-        // FLOOR
-        model = glm::mat4();
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        //model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
-        //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-        shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-        meshList[2]->RenderMesh();
-
-        // DOG
-        model = glm::mat4();
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, -90 * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-        shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-        dog.RenderModel();
-
-        glBindVertexArray(0);
+        DirectionalShadowPass(&mainLight);
+        RenderPass(projection, camera.calculateViewMatrix());
 
         glUseProgram(0);
 

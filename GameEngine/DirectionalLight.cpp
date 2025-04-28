@@ -3,7 +3,7 @@
 DirectionalLight::DirectionalLight() : Light()
 {
 	direction = glm::vec3(0.0f, -1.0f, 0.0f);
-	lightProj = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 0.1f, 20.0f);
+	lightProj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 100.0f);
 }
 
 DirectionalLight::DirectionalLight(GLfloat shadowWidth, GLfloat shadowHeight, 

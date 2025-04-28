@@ -152,7 +152,7 @@ void Shader::CompileShader(const char* vertexCode, const char* fragmentCode)
 		uniformSpotLight[i].uniformEdge = glGetUniformLocation(shaderID, locBuff);
 	}
 	uniformTexture = glGetUniformLocation(shaderID, "theTexture");
-	uniformDirectionalLightTransform = glGetUniformLocation(shaderID, "directionalLightTransform");
+	uniformDirectionalLightTransform = glGetUniformLocation(shaderID, "directionalLightSpaceTransform");
 	uniformDirectionalShadowMap = glGetUniformLocation(shaderID, "directionalShadowMap");
 }
 

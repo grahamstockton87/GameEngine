@@ -61,6 +61,8 @@ Model dog;
 GLfloat deltaTime = 0.0f;
 GLfloat lastTime = 0.0f;
 
+GLfloat Angle = 0.0f;
+
 bool direction = true;
 float triOffset = 0.0f;
 float triMaxOffset = 0.6f;
@@ -141,9 +143,14 @@ void RenderScene() {
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[2]->RenderMesh();
 
+    Angle += 0.1f * deltaTime;
+    if (Angle > 360.0f) {
+        Angle = 0.0f;
+    }
     // DOG
     model = glm::mat4();
-    model = glm::translate(model, glm::vec3(0.0f, 2.0f, 0.0f));
+    model = glm::rotate(model, Angle, glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::translate(model, glm::vec3(-5.0f, 1.0f, 0.0f));
     model = glm::rotate(model, -90 * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
     model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
     glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));

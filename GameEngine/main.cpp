@@ -545,12 +545,16 @@ int main() {
         }
 
         camera.isGrounded = anyGrounded;
+
         if (anyGrounded) {
             camera.groundLevel = maxGroundLevel;
-            // Set position.y here — not inside boxCollision
             camera.position.y = camera.groundLevel + camera.radiusY;
             camera.verticalVelocity = 0.0f;
         }
+        else {
+            camera.groundLevel = 0.0f;  // ✅ Reset to floor height
+        }
+
 
 
 

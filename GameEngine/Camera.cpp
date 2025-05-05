@@ -97,29 +97,35 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChang
 
 void Camera::updatePhysics(GLfloat deltaTime)
 {
+	const float epsilon = 0.01f;
+
 	if (!isGrounded) {
 		verticalVelocity += gravity * deltaTime;
 		position.y += verticalVelocity * deltaTime + 0.5f * gravity * deltaTime * deltaTime;
-		if (position.y < groundLevel) {
+
+		// 🚨 Floor clamp (failsafe if we fall through)
+		if (position.y < groundLevel + radiusY - epsilon) {
 			isGrounded = true;
 			verticalVelocity = 0.0f;
-			position.y = radiusY + groundLevel;
+			position.y = groundLevel + radiusY;
 		}
 	}
 	else {
+		// Player is grounded — keep them pinned
 		verticalVelocity = 0.0f;
-		position.y = radiusY + groundLevel;
+		position.y = groundLevel + radiusY;
 	}
-	//std::cout << "ground level " << groundLevel << std::endl;
-	
 }
+
 
 
 bool Camera::boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float& outGroundLevel)
 {
 	const float epsilon = 0.5f;
 
-	if (!intersects(box)) return false;
+	if (!intersects(box)) {
+		return false;
+	}
 
 	float feet = position.y - radiusY;
 	glm::vec3 delta = position - previousPosition;

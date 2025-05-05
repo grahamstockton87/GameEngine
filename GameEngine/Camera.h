@@ -16,22 +16,35 @@ public:
 	void keyControl(bool* keys, GLfloat deltaTime);
 	void mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, GLfloat deltaTime); 
 	void updatePhysics(GLfloat deltaTime);
-	void boxCollision(Mesh::BoundingBox box);
+	bool boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float& outGroundLevel);
 	void setPostion(glm::vec3 pos);
 
 	glm::vec3 getCameraPostion();
 	glm::vec3 getCameraDirection();
+	bool isOnGround() const;
 
 	glm::mat4 calculateViewMatrix();
 
 	GLfloat getFov();
 	void setFov(GLfloat Infov);
 
+	bool isGrounded;
+	glm::vec3 position;
+	glm::vec3 previousPosition;
+	float groundLevel = 0;
 
+	GLfloat verticalVelocity = 0.0f;
+	const GLfloat gravity = -20.0f; // Or tweak to your scale
+	const GLfloat terminalVelocity = 50.0f;
+
+	const float height = 2.0f;
+	const float radiusX = 0.1f;    // Half-width (side-to-side)
+	const float radiusZ = 0.1f;    // Half-depth (front-to-back)
+	const float radiusY = 2.0f;
 
 	~Camera();
 private:
-	glm::vec3 position;
+	
 	glm::vec3 front;
 	glm::vec3 up;
 	glm::vec3 right;
@@ -47,16 +60,16 @@ private:
 
 	GLfloat fov;
 
-	bool isGrounded;
-	GLfloat verticalVelocity = 0.0f;
-	const GLfloat gravity = -50.0f; // Or tweak to your scale
-	const GLfloat terminalVelocity = 50.0f;
+	
 
-	glm::vec3 previousPosition;
+
+	bool prevJumpPressed = false;
+
+	
 
 	void update();
 
-	bool intersects(Mesh::BoundingBox box);
+	bool intersects(const Mesh::BoundingBox& box) const;
 
 };
 

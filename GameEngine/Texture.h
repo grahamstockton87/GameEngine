@@ -1,8 +1,8 @@
 #pragma once
-#include <GL/glew.h>
-#include "stb_image.h"
-#include <string>
 
+#include <string>
+#include "CommonValues.h"
+#include <GL/glew.h>
 
 class Texture {
 public:

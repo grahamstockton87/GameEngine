@@ -1,4 +1,4 @@
-#include "Camera.h"
+ï»¿#include "Camera.h"
 #include <iostream>
 #include "Mesh.h"
 Camera::Camera()
@@ -27,13 +27,12 @@ Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLf
 
 void Camera::keyControl(bool* keys, GLfloat deltaTime)
 {
-	previousPosition = position;
 
 	GLfloat velocity = moveSpeed * deltaTime;
+
 	if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) {
 		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
 		position += flatFront * velocity;
-
 	}
 	if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN]) {
 		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
@@ -53,17 +52,22 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 		roll -= velocity + rollSpeed;
 		update();
 	}
-	if (keys[GLFW_KEY_SPACE]) {
-		if (isGrounded) {
-			verticalVelocity = 20.0f;
-			isGrounded = false;
-		}
+
+	// Jump edge trigger
+	if (keys[GLFW_KEY_SPACE] && isGrounded) {
+		verticalVelocity = 20.0f;
+		position.y += 0.1f;
+		isGrounded = false;
 	}
+	else if (keys[GLFW_KEY_SPACE] && !isGrounded){
+		std::cout << 0;
+	}
+
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {
 		position.y -= velocity;
 	}
-
 }
+
 
 void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, GLfloat deltaTime)
 {
@@ -93,61 +97,69 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChang
 
 void Camera::updatePhysics(GLfloat deltaTime)
 {
-	float height = 2.0f;
-	float floor = 0.0f;
-
-	//std::cout << "Postion y " << position.y << std::endl;
-	//std::cout << isGrounded;
-	
-	if (position.y > floor + height || !isGrounded) {
-		isGrounded = false;
+	if (!isGrounded) {
 		verticalVelocity += gravity * deltaTime;
 		position.y += verticalVelocity * deltaTime + 0.5f * gravity * deltaTime * deltaTime;
-
-	}
-	if (position.y < floor + height){
-		isGrounded = true;
-		position.y = height;
-	}
-}
-
-void Camera::boxCollision(Mesh::BoundingBox box)
-{
-	if (!intersects(box)) return;
-
-	glm::vec3 delta = position - previousPosition;
-
-	// Resolve Y-axis (vertical) collision
-	if (previousPosition.y >= box.max.y && position.y < box.max.y) {
-		// Landing on top of the box
-		isGrounded = true;
-		verticalVelocity = 0.0f;
-		position.y = box.max.y;
+		if (position.y < groundLevel) {
+			isGrounded = true;
+			verticalVelocity = 0.0f;
+			position.y = radiusY + groundLevel;
+		}
 	}
 	else {
-		// Not a top collision — resolve sides
-		if (delta.x != 0 && previousPosition.x <= box.min.x && position.x > box.min.x) {
-			position.x = previousPosition.x;
-		}
-		if (delta.x != 0 && previousPosition.x >= box.max.x && position.x < box.max.x) {
-			position.x = previousPosition.x;
-		}
-
-		if (delta.z != 0 && previousPosition.z <= box.min.z && position.z > box.min.z) {
-			position.z = previousPosition.z;
-		}
-		if (delta.z != 0 && previousPosition.z >= box.max.z && position.z < box.max.z) {
-			position.z = previousPosition.z;
-		}
-
-		// Optional: handle vertical head bump
-		if (delta.y > 0 && previousPosition.y <= box.min.y && position.y > box.min.y) {
-			position.y = previousPosition.y;
-			verticalVelocity = 0.0f; // stop rising if bumping
-		}
+		verticalVelocity = 0.0f;
+		position.y = radiusY + groundLevel;
 	}
+	//std::cout << "ground level " << groundLevel << std::endl;
+	
 }
 
+
+bool Camera::boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float& outGroundLevel)
+{
+	const float epsilon = 0.5f;
+
+	if (!intersects(box)) return false;
+
+	float feet = position.y - radiusY;
+	glm::vec3 delta = position - previousPosition;
+
+	bool feetOnTop = (feet >= box.max.y - epsilon && feet <= box.max.y + epsilon);
+	bool xInside = position.x >= box.min.x && position.x <= box.max.x;
+	bool zInside = position.z >= box.min.z && position.z <= box.max.z;
+
+	bool landed = feetOnTop || (xInside && zInside);
+	if (landed) {
+		outGroundLevel = box.max.y;
+	}
+
+	// Horizontal pushback logic remains
+	const float pushback = 0.05f;
+	if (delta.x > 0 && previousPosition.x + pushback <= box.min.x && position.x + pushback > box.min.x) {
+		position.x = previousPosition.x;
+	}
+	else if (delta.x < 0 && previousPosition.x - pushback >= box.max.x && position.x - pushback < box.max.x) {
+		position.x = previousPosition.x;
+	}
+	if (delta.z > 0 && previousPosition.z + pushback <= box.min.z && position.z + pushback > box.min.z) {
+		position.z = previousPosition.z;
+	}
+	else if (delta.z < 0 && previousPosition.z - pushback >= box.max.z && position.z - pushback < box.max.z) {
+		position.z = previousPosition.z;
+	}
+
+	return landed;
+}
+
+
+
+
+
+
+
+bool Camera::isOnGround() const {
+	return isGrounded;
+}
 
 
 void Camera::setPostion(glm::vec3 pos)
@@ -202,17 +214,26 @@ void Camera::update()
 
 
 }
-bool Camera::intersects(Mesh::BoundingBox box)
+bool Camera::intersects(const Mesh::BoundingBox& box) const
 {
-	const float radius = 0.5f; // Adjust based on how wide your camera/player is
+	float feet = position.y - radiusY;
+	bool xInside = (position.x >= box.min.x && position.x <= box.max.x);
+	bool yInside = (feet >= box.min.y && feet <= box.max.y);
+	bool zInside = (position.z >= box.min.z && position.z <= box.max.z);
 
-	return (position.x >= box.min.x &&
-		position.x <= box.max.x &&
-		position.y >= box.min.y &&
-		position.y <= box.max.y &&
-		position.z >= box.min.z &&
-		position.z <= box.max.z);
+	std::cout << "Checking intersect: "
+		<< "pos=(" << position.x << ", " << position.y << ", " << position.z << "), "
+		<< "feet=" << feet << ", "
+		<< "boxY=[" << box.min.y << "," << box.max.y << "], "
+		<< "xInside=" << xInside << ", yInside=" << yInside << ", zInside=" << zInside << std::endl;
+
+	return xInside && yInside && zInside;
 }
+
+
+
+
+
 
 
 

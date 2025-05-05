@@ -77,19 +77,30 @@ Mesh::BoundingBox Mesh::CalculateBoundingBox() const
 	if (transformedVertices.empty()) {
 		box.min = glm::vec3(0.0f);
 		box.max = glm::vec3(0.0f);
+		std::cerr << "[Warning] Bounding box calculation: No transformed vertices.\n";
 		return box;
 	}
-
-	// Initialize min and max with the first transformed vertex
-	box.min = transformedVertices[0];
-	box.max = transformedVertices[0];
-
-	// Loop through all transformed vertices to update the bounds
-	for (const auto& vertex : transformedVertices) {
-		box.min = glm::min(box.min, vertex);
-		box.max = glm::max(box.max, vertex);
+	if (box.min.y == box.max.y) {
+		box.min.y -= 0.1f;
+		box.max.y += 0.1f;
 	}
-	//std::cout << box.min.x << box.min.y << box.min.z << box.max.x;
+
+
+	auto minBound = transformedVertices[0];
+	auto maxBound = transformedVertices[0];
+
+	for (const auto& vertex : transformedVertices) {
+		minBound = glm::min(minBound, vertex);
+		maxBound = glm::max(maxBound, vertex);
+	}
+
+	box.min = minBound;
+	box.max = maxBound;
+
+	// Uncomment for debugging
+	 //std::cout << "Bounding Box Min: " << box.min.x << ", " << box.min.y << ", " << box.min.z << '\n';
+	 //std::cout << "Bounding Box Max: " << box.max.x << ", " << box.max.y << ", " << box.max.z << '\n';
+
 	return box;
 }
 
@@ -98,21 +109,21 @@ void Mesh::updateVertices(glm::mat4 model)
 {
 	transformedVertices.clear();
 
-	for (unsigned int i = 0; i < mNumOfVertices/ 8 * 4; i+=4) {
-
-		// Read position
-		GLfloat x = mVertices[i + 0];
-		GLfloat y = mVertices[i + 1];
-		GLfloat z = mVertices[i + 2];
+	unsigned int vertexCount = mNumOfVertices / 8;
+	for (unsigned int i = 0; i < vertexCount; i++) {
+		GLfloat x = mVertices[i * 8 + 0];
+		GLfloat y = mVertices[i * 8 + 1];
+		GLfloat z = mVertices[i * 8 + 2];
 
 		glm::vec4 localPos = glm::vec4(x, y, z, 1.0f);
 		glm::vec4 worldPos = model * localPos;
 
-		//std::cout << worldPos[0] << " " << worldPos[1] << " " << worldPos[2] << std::endl;
-
-		transformedVertices.push_back(glm::vec3(worldPos.x,worldPos.y,worldPos.z));
+		transformedVertices.push_back(glm::vec3(worldPos));
+		//std::cout << "Vertex " << i << ": " << x << ", " << y << ", " << z << "\n";
+		//std::cout << worldPos.x << worldPos.y << worldPos.z;
 	}
 }
+
 
 
 Mesh::~Mesh()

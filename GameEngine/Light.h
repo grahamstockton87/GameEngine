@@ -20,6 +20,7 @@ protected:
 
 	glm::vec3 direction;
 	GLfloat diffuseIntensity;
+	glm::vec3 GetPosition();
 
 	glm::mat4 lightProj;
 

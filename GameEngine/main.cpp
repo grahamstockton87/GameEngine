@@ -167,10 +167,11 @@ void RenderScene() {
     tile.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[4]->RenderMesh();
+    meshList[4]->boxCollision = false;
     meshList[4]->updateVertices(model);
     meshList[4]->box = meshList[4]->CalculateBoundingBox();
 
-    // ramp box
+    // box2
     model = glm::mat4();
     model = glm::translate(model, glm::vec3(5.0f, 11.0f, 8.0f));
     //model = glm::rotate(model, 45 * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -315,6 +316,43 @@ std::vector<Triangle> ExtractTrianglesFromMesh(const Mesh* mesh) {
     }
 
     return triangles;
+}
+bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
+    const glm::vec3& rayDir,
+    const glm::vec3& v0,
+    const glm::vec3& v1,
+    const glm::vec3& v2,
+    float& outHitY)
+{
+    const float EPSILON = 0.000001f;
+    glm::vec3 edge1 = v1 - v0;
+    glm::vec3 edge2 = v2 - v0;
+
+    glm::vec3 h = glm::cross(rayDir, edge2);
+    float a = glm::dot(edge1, h);
+    if (a > -EPSILON && a < EPSILON)
+        return false;  // Ray is parallel to triangle
+
+    float f = 1.0f / a;
+    glm::vec3 s = rayOrigin - v0;
+    float u = f * glm::dot(s, h);
+    if (u < 0.0f || u > 1.0f)
+        return false;
+
+    glm::vec3 q = glm::cross(s, edge1);
+    float v = f * glm::dot(rayDir, q);
+    if (v < 0.0f || u + v > 1.0f)
+        return false;
+
+    // At this point, we have an intersection at distance t along ray
+    float t = f * glm::dot(edge2, q);
+    if (t > EPSILON) {
+        glm::vec3 hitPoint = rayOrigin + rayDir * t;
+        outHitY = hitPoint.y;
+        return true;
+    }
+
+    return false;
 }
 
 int main() {
@@ -618,24 +656,65 @@ int main() {
 
         camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), deltaTime);
 
-        camera.keyControl(mainWindow.getKeys(), deltaTime);
+        
 
-        std::vector<bool> groundedStates;
-        groundedStates.clear();
-
-        float maxGroundLevel = 0.0;  // so we can compare safely
+        float maxGroundLevel = 0.0f;
         bool anyGrounded = false;
+        glm::vec3 rayOrigin = camera.getCameraPostion();
+        glm::vec3 rayDir = glm::vec3(0, -1, 0); // down ray
+        float closestY = -FLT_MAX;
+        bool hit = false;
 
         for (Mesh* mesh : meshList) {
-            float groundY = 0.0f;
-            if (camera.boxCollision(mesh->box, deltaTime, groundY)) {
-                anyGrounded = true;
-                if (groundY > maxGroundLevel) {
-                    maxGroundLevel = groundY;
+            if (!mesh->transformedVertices.empty()) {
+                const std::vector<Triangle> tris = ExtractTrianglesFromMesh(mesh);
+                for (const Triangle& tri : tris) {
+                    float hitY;
+                    if (RayIntersectsTriangle(rayOrigin, rayDir, tri.v0, tri.v1, tri.v2, hitY)) {
+                        if (hitY > closestY) {
+                            closestY = hitY;
+                            hit = true;
+                        }
+                    }
                 }
             }
         }
 
+        const float groundSnapOffset = 0.001f; // small buffer to avoid falling through
+
+        if (hit) {
+            float feet = camera.position.y - camera.radiusY;
+            float distanceToGround = feet - closestY;
+
+            if (distanceToGround < 0.05f) { // Acceptable threshold
+                camera.isGrounded = true;
+                camera.groundLevel = closestY;
+                camera.position.y = closestY + camera.radiusY + groundSnapOffset;
+                camera.verticalVelocity = 0.0f;
+            }
+        }
+        else if (anyGrounded) {
+            camera.isGrounded = true;
+            camera.groundLevel = maxGroundLevel;
+            camera.position.y = camera.groundLevel + camera.radiusY;
+            camera.verticalVelocity = 0.0f;
+        }
+        else {
+            camera.isGrounded = false;
+            camera.groundLevel = 0.0f;
+        }
+
+        camera.keyControl(mainWindow.getKeys(), deltaTime);
+
+        //for (Mesh* mesh : meshList) {
+        //    float groundY = 0.0f;
+        //    if (camera.boxCollision(mesh->box, deltaTime, groundY)) {
+        //        anyGrounded = true;
+        //        if (groundY > maxGroundLevel) {
+        //            maxGroundLevel = groundY;
+        //        }
+        //    }
+        //}
         camera.isGrounded = anyGrounded;
 
         if (anyGrounded) {
@@ -644,12 +723,12 @@ int main() {
             camera.verticalVelocity = 0.0f;
         }
         else {
-            camera.groundLevel = 0.0f;  // ✅ Reset to floor height
+            camera.groundLevel = 0.0f;  // Reset to floor height
         }
 
+        
 
-
-
+        
         //std::cout << camera.isGrounded;
        
         //std::cout << camera.isGrounded;

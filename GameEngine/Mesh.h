@@ -29,6 +29,7 @@ public:
 	BoundingBox box;
 	std::vector<glm::vec3> transformedVertices;
 
+	bool boxCollision = true;
 	~Mesh();
 private:
 	GLuint VAO, VBO, IBO;

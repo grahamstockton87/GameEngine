@@ -58,7 +58,7 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 	// Jump edge trigger
 	if (keys[GLFW_KEY_SPACE] && isGrounded) {
 		verticalVelocity = 10.0f;
-		position.y += 0.001f;
+		//position.y += 0.1f;
 		isGrounded = false;
 	}
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {

@@ -30,6 +30,7 @@
 #include "Material.h"
 #include "Model.h"
 #include "Skybox.h"
+#include "Triangle.h"
 
 const float toRadians = 3.14159265f / 180.0f;
 
@@ -51,6 +52,7 @@ Shader omniShadowShader;
 
 Texture brickTexture;
 Texture transparent;
+Texture wallpaper, tile;
 
 DirectionalLight mainLight;
 PointLight pointLights[MAX_POINT_LIGHTS];
@@ -138,8 +140,10 @@ void RenderScene() {
 
     // FLOOR
     model = glm::mat4();
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+    model = glm::translate(model, glm::vec3(0.0f, 0.1f, 0.0f));
+    model = glm::scale(model, glm::vec3(10.0f, 0.5f, 10.0f));
     glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    tile.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[2]->RenderMesh();
     meshList[2]->updateVertices(model);
@@ -150,11 +154,33 @@ void RenderScene() {
     model = glm::translate(model, glm::vec3(0.0f, 10.0f, 0.0f));
     model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
     glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-    brickTexture.UseTexture();
+    wallpaper.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[3]->RenderMesh();
-   // meshList[3]->updateVertices(model);
-    //meshList[3]->box = meshList[3]->CalculateBoundingBox();
+
+    // ramp box
+    model = glm::mat4();
+    model = glm::translate(model, glm::vec3(-2.0f, 4.5f, 8.0f));
+    model = glm::rotate(model, 45 * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
+    model = glm::scale(model, glm::vec3(10.0f, 2.0f, 1.0f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    tile.UseTexture();
+    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    meshList[4]->RenderMesh();
+    meshList[4]->updateVertices(model);
+    meshList[4]->box = meshList[4]->CalculateBoundingBox();
+
+    // ramp box
+    model = glm::mat4();
+    model = glm::translate(model, glm::vec3(5.0f, 11.0f, 8.0f));
+    //model = glm::rotate(model, 45 * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
+    model = glm::scale(model, glm::vec3(2.0f, 2.0f, 2.0f));
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    tile.UseTexture();
+    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    meshList[5]->RenderMesh();
+    meshList[5]->updateVertices(model);
+    meshList[5]->box = meshList[5]->CalculateBoundingBox();
 
     Angle += 0.1f * deltaTime;
     if (Angle > 360.0f) {
@@ -176,7 +202,6 @@ void RenderScene() {
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     brickTexture.UseTexture();
     land.RenderModel();
-
 
     glBindVertexArray(0);
 }
@@ -274,6 +299,23 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
     RenderScene();
 
 }
+std::vector<Triangle> ExtractTrianglesFromMesh(const Mesh* mesh) {
+    std::vector<Triangle> triangles;
+
+    for (unsigned int i = 0; i < mesh->mNumOfIndices; i += 3) {
+        unsigned int i0 = mesh->mIndices[i];
+        unsigned int i1 = mesh->mIndices[i + 1];
+        unsigned int i2 = mesh->mIndices[i + 2];
+
+        Triangle tri;
+        tri.v0 = mesh->transformedVertices[i0];
+        tri.v1 = mesh->transformedVertices[i1];
+        tri.v2 = mesh->transformedVertices[i2];
+        triangles.push_back(tri);
+    }
+
+    return triangles;
+}
 
 int main() {
     
@@ -296,7 +338,7 @@ int main() {
     };
     calcAverageNormals(pyramidIndices, 12, pyramidVertices, 32, 8, 5);
 
-    unsigned int indices[] = {
+    unsigned int boxIndices[] = {
         // front face (z = +1)
         0, 1, 2,  2, 3, 0,        // bottom-left, bottom-right, top-right, top-left
 
@@ -315,80 +357,117 @@ int main() {
         // bottom face (y = -1)
         20, 21, 22, 22, 23, 20
     };
-    GLfloat vertices[] = {
+    GLfloat boxVertices[] = {
         // FRONT (+Z)
         -1, -1,  1,   0, 0,   0,  0, -1,
-         1, -1,  1,   1, 0,   0,  0, -1,
-         1,  1,  1,   1, 1,   0,  0, -1,
-        -1,  1,  1,   0, 1,   0,  0, -1,
+         1, -1,  1,   5, 0,   0,  0, -1,
+         1,  1,  1,   5, 5,   0,  0, -1,
+        -1,  1,  1,   0, 5,   0,  0, -1,
 
         // BACK (-Z)
          1, -1, -1,   0, 0,   0,  0, 1,
-        -1, -1, -1,   1, 0,   0,  0, 1,
-        -1,  1, -1,   1, 1,   0,  0, 1,
-         1,  1, -1,   0, 1,   0,  0, 1,
+        -1, -1, -1,   5, 0,   0,  0, 1,
+        -1,  1, -1,   5, 5,   0,  0, 1,
+         1,  1, -1,   0, 5,   0,  0, 1,
 
          // LEFT (-X)
          -1, -1, -1,   0, 0,   1,  0,  0,
-         -1, -1,  1,   1, 0,   1,  0,  0,
-         -1,  1,  1,   1, 1,   1,  0,  0,
-         -1,  1, -1,   0, 1,   1,  0,  0,
+         -1, -1,  1,   5, 0,   1,  0,  0,
+         -1,  1,  1,   5, 5,   1,  0,  0,
+         -1,  1, -1,   0, 5,   1,  0,  0,
 
          // RIGHT (+X)
           1, -1,  1,   0, 0,  -1,  0,  0,
-          1, -1, -1,   1, 0,  -1,  0,  0,
-          1,  1, -1,   1, 1,  -1,  0,  0,
-          1,  1,  1,   0, 1,  -1,  0,  0,
+          1, -1, -1,   5, 0,  -1,  0,  0,
+          1,  1, -1,   5, 5,  -1,  0,  0,
+          1,  1,  1,   0, 5,  -1,  0,  0,
 
           // TOP (+Y)
           -1,  1,  1,   0, 0,   0, -1,  0,
-           1,  1,  1,   1, 0,   0, -1,  0,
-           1,  1, -1,   1, 1,   0, -1,  0,
-          -1,  1, -1,   0, 1,   0, -1,  0,
+           1,  1,  1,   5, 0,   0, -1,  0,
+           1,  1, -1,   5, 5,   0, -1,  0,
+          -1,  1, -1,   0, 5,   0, -1,  0,
 
           // BOTTOM (-Y)
           -1, -1, -1,   0, 0,   0, 1,  0,
-           1, -1, -1,   1, 0,   0, 1,  0,
-           1, -1,  1,   1, 1,   0, 1,  0,
-          -1, -1,  1,   0, 1,   0, 1,  0
+           1, -1, -1,   5, 0,   0, 1,  0,
+           1, -1,  1,   5, 5,   0, 1,  0,
+          -1, -1,  1,   0, 5,   0, 1,  0
+    };
+
+    GLfloat boxVertices2[] = {
+        //   X     Y     Z      U   V     NX   NY   NZ
+        -1, -1, -1,   0, 0,    0,  0,  0,  // 0: Left  Bottom Back
+         1, -1, -1,   1, 0,    0,  0,  0,  // 1: Right Bottom Back
+         1,  1, -1,   1, 1,    0,  0,  0,  // 2: Right Top    Back
+        -1,  1, -1,   0, 1,    0,  0,  0,  // 3: Left  Top    Back
+        -1, -1,  1,   0, 0,    0,  0,  0,  // 4: Left  Bottom Front
+         1, -1,  1,   1, 0,    0,  0,  0,  // 5: Right Bottom Front
+         1,  1,  1,   1, 1,    0,  0,  0,  // 6: Right Top    Front
+        -1,  1,  1,   0, 1,    0,  0,  0   // 7: Left  Top    Front
+    };
+    unsigned int boxIndices2[] = {
+        // Back face (CCW)
+        2, 1, 0,
+        0, 3, 2,
+
+        // Front face
+        4, 5, 6,
+        6, 7, 4,
+
+        // Left face
+        7, 4, 0,
+        0, 3, 7,
+
+        // Right face
+        1, 5, 6,
+        6, 2, 1,
+
+        // Top face
+        6, 7, 3,
+        3, 2, 6,
+
+        // Bottom face
+        0, 4, 5,
+        5, 1, 0
     };
 
     GLfloat verticesReverseBox[] = {
         // FRONT (+Z) → normal: (0, 0, 1)
         -1, -1,  1,   0, 0,   0,  0, 1,
-         1, -1,  1,   1, 0,   0,  0, 1,
-         1,  1,  1,   1, 1,   0,  0, 1,
-        -1,  1,  1,   0, 1,   0,  0, 1,
+         1, -1,  1,   10, 0,   0,  0, 1,
+         1,  1,  1,   10, 10,   0,  0, 1,
+        -1,  1,  1,   0, 10,   0,  0, 1,
 
         // BACK (-Z) → normal: (0, 0, -1)
          1, -1, -1,   0, 0,   0,  0, -1,
-        -1, -1, -1,   1, 0,   0,  0, -1,
-        -1,  1, -1,   1, 1,   0,  0, -1,
-         1,  1, -1,   0, 1,   0,  0, -1,
+        -1, -1, -1,   10, 0,   0,  0, -1,
+        -1,  1, -1,   10, 10,   0,  0, -1,
+         1,  1, -1,   0, 10,   0,  0, -1,
 
          // LEFT (-X) → normal: (-1, 0, 0)
          -1, -1, -1,   0, 0,  -1,  0,  0,
-         -1, -1,  1,   1, 0,  -1,  0,  0,
-         -1,  1,  1,   1, 1,  -1,  0,  0,
-         -1,  1, -1,   0, 1,  -1,  0,  0,
+         -1, -1,  1,   10, 0,  -1,  0,  0,
+         -1,  1,  1,   10, 10,  -1,  0,  0,
+         -1,  1, -1,   0, 10,  -1,  0,  0,
 
          // RIGHT (+X) → normal: (1, 0, 0)
           1, -1,  1,   0, 0,   1,  0,  0,
-          1, -1, -1,   1, 0,   1,  0,  0,
-          1,  1, -1,   1, 1,   1,  0,  0,
-          1,  1,  1,   0, 1,   1,  0,  0,
+          1, -1, -1,   10, 0,   1,  0,  0,
+          1,  1, -1,   10, 10,   1,  0,  0,
+          1,  1,  1,   0, 10,   1,  0,  0,
 
           // TOP (+Y) → normal: (0, 1, 0)
           -1,  1,  1,   0, 0,   0,  1,  0,
-           1,  1,  1,   1, 0,   0,  1,  0,
-           1,  1, -1,   1, 1,   0,  1,  0,
-          -1,  1, -1,   0, 1,   0,  1,  0,
+           1,  1,  1,   10, 0,   0,  1,  0,
+           1,  1, -1,   10, 10,   0,  1,  0,
+          -1,  1, -1,   0, 10,   0,  1,  0,
 
           // BOTTOM (-Y) → normal: (0, -1, 0)
           -1, -1, -1,   0, 0,   0, -1,  0,
-           1, -1, -1,   1, 0,   0, -1,  0,
-           1, -1,  1,   1, 1,   0, -1,  0,
-          -1, -1,  1,   0, 1,   0, -1,  0
+           1, -1, -1,   10, 0,   0, -1,  0,
+           1, -1,  1,   10, 10,   0, -1,  0,
+          -1, -1,  1,   0, 10,   0, -1,  0
     };
     unsigned int indicesBoxReverse[] = {
         // front face (+Z)
@@ -409,7 +488,7 @@ int main() {
         // bottom face (-Y)
         21, 22, 20,  20, 22, 23
     };
-    calcAverageNormals(indicesBoxReverse, 36, verticesReverseBox, 192, 8, 5);
+    //calcAverageNormals(indicesBoxReverse, 36, verticesReverseBox, 192, 8, 5);
 
     unsigned int floorIndices[]{
         0, 2, 1,
@@ -422,8 +501,7 @@ int main() {
         10.0f, 0.05f, 10.0f,     10.0f, 10.0f,   0.0f, -1.0f, 0.0f
     };
 
-
-    Mesh* cube = new Mesh(vertices, indices, 192, 36);
+    Mesh* cube = new Mesh(boxVertices, boxIndices, 192, 36);
     cube->CreateMesh();
     meshList.push_back(cube);
 
@@ -431,16 +509,24 @@ int main() {
     pyramid->CreateMesh();
     meshList.push_back(pyramid);
 
-    Mesh* floor = new Mesh(floorVertices, floorIndices, 32, 6);
+    Mesh* floor = new Mesh(boxVertices, boxIndices, 192, 36);
     floor->CreateMesh();
     meshList.push_back(floor);
 
-    std::cout << "floor " << floor->box.max.y;
+    //std::cout << "floor " << floor->box.max.y;
 
     Mesh* cubeReverse = new Mesh(verticesReverseBox, indicesBoxReverse, 192, 36);
     cubeReverse->CreateMesh();
     meshList.push_back(cubeReverse);
 
+    Mesh* cube2 = new Mesh(boxVertices, boxIndices, 192, 36);
+    cube2->CreateMesh();
+    meshList.push_back(cube2);
+
+
+    Mesh* cube3 = new Mesh(boxVertices, boxIndices, 192, 36);
+    cube3->CreateMesh();
+    meshList.push_back(cube3);
     CreateShaders();
     
     // MATERIALS  -------------------------------------------------------------------------------------------
@@ -454,6 +540,12 @@ int main() {
     transparent = Texture("Textures/transparent.png");
     transparent.LoadTextureA();
 
+    tile = Texture("Textures/tile.png");
+    tile.LoadTexture();
+
+    wallpaper = Texture("Textures/wallpaper.jpg");
+    wallpaper.LoadTexture();
+
     dog = Model();
     dog.LoadModel("Models/dog.obj");
 
@@ -463,7 +555,7 @@ int main() {
     // LIGHTS --------------------------------------------------------------------------------------------
     mainLight = DirectionalLight(1024, 1024,
                                 1.0f, 1.0f, 1.0f, 
-                                 0.0f, 0.1f, 
+                                 0.1f, 1.0f, 
                                  0.0f, -7.0f, -1.0f);
 
     pointLights[0] = PointLight(1024, 1024,
@@ -531,7 +623,7 @@ int main() {
         std::vector<bool> groundedStates;
         groundedStates.clear();
 
-        float maxGroundLevel = 0;  // so we can compare safely
+        float maxGroundLevel = 0.0;  // so we can compare safely
         bool anyGrounded = false;
 
         for (Mesh* mesh : meshList) {
@@ -560,7 +652,7 @@ int main() {
 
         //std::cout << camera.isGrounded;
        
-        std::cout << camera.isGrounded;
+        //std::cout << camera.isGrounded;
         camera.updatePhysics(deltaTime);
         
         //camera.updatePhysics(deltaTime);

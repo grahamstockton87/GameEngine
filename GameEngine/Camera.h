@@ -5,6 +5,7 @@
 #include <gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 #include "Mesh.h"
+#include "Triangle.h"
 
 class Camera {
 public:

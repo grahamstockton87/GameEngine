@@ -29,7 +29,9 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 {
 
 	GLfloat velocity = moveSpeed * deltaTime;
-
+	if (keys[GLFW_KEY_LEFT_SHIFT]) {
+		velocity *= 2;
+	}
 	if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) {
 		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
 		position += flatFront * velocity;
@@ -55,14 +57,10 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 
 	// Jump edge trigger
 	if (keys[GLFW_KEY_SPACE] && isGrounded) {
-		verticalVelocity = 20.0f;
-		position.y += 0.1f;
+		verticalVelocity = 10.0f;
+		position.y += 0.001f;
 		isGrounded = false;
 	}
-	else if (keys[GLFW_KEY_SPACE] && !isGrounded){
-		std::cout << 0;
-	}
-
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {
 		position.y -= velocity;
 	}
@@ -103,7 +101,7 @@ void Camera::updatePhysics(GLfloat deltaTime)
 		verticalVelocity += gravity * deltaTime;
 		position.y += verticalVelocity * deltaTime + 0.5f * gravity * deltaTime * deltaTime;
 
-		// 🚨 Floor clamp (failsafe if we fall through)
+		// Floor clamp (failsafe if we fall through)
 		if (position.y < groundLevel + radiusY - epsilon) {
 			isGrounded = true;
 			verticalVelocity = 0.0f;
@@ -156,12 +154,6 @@ bool Camera::boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float
 
 	return landed;
 }
-
-
-
-
-
-
 
 bool Camera::isOnGround() const {
 	return isGrounded;
@@ -227,19 +219,8 @@ bool Camera::intersects(const Mesh::BoundingBox& box) const
 	bool yInside = (feet >= box.min.y && feet <= box.max.y);
 	bool zInside = (position.z >= box.min.z && position.z <= box.max.z);
 
-	std::cout << "Checking intersect: "
-		<< "pos=(" << position.x << ", " << position.y << ", " << position.z << "), "
-		<< "feet=" << feet << ", "
-		<< "boxY=[" << box.min.y << "," << box.max.y << "], "
-		<< "xInside=" << xInside << ", yInside=" << yInside << ", zInside=" << zInside << std::endl;
-
 	return xInside && yInside && zInside;
 }
-
-
-
-
-
 
 
 

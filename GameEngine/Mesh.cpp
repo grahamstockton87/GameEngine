@@ -114,6 +114,12 @@ void Mesh::updateVertices(glm::mat4 model)
 		GLfloat x = mVertices[i * 8 + 0];
 		GLfloat y = mVertices[i * 8 + 1];
 		GLfloat z = mVertices[i * 8 + 2];
+		mVertices[i * 8 + 3] = 0.0f;
+		mVertices[i * 8 + 4] = 0.0f;
+
+		mVertices[i * 8 + 5] = 0.0f;
+		mVertices[i * 8 + 6] = 0.0f;
+		mVertices[i * 8 + 7] = 0.0f;
 
 		glm::vec4 localPos = glm::vec4(x, y, z, 1.0f);
 		glm::vec4 worldPos = model * localPos;

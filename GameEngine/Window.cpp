@@ -1,6 +1,7 @@
 #include "Window.h"
 #include <iostream>
 
+
 Window::Window() {
 	width = 800;
 	height = 600;
@@ -9,6 +10,8 @@ Window::Window() {
 
 	xChange = 0.0f;
 	yChange = 0.0f;
+
+	leftMouseClicked = false;
 }
 
 Window::Window(GLint windowWidth, GLint windowHeight) {
@@ -21,6 +24,8 @@ Window::Window(GLint windowWidth, GLint windowHeight) {
 	yChange = 0.0f;
 
 	yChangeScroll = 0.0f;
+
+	leftMouseClicked = false;
 }
 int Window::Initialize() {
 	//initialize glfw 
@@ -68,12 +73,20 @@ int Window::Initialize() {
 	}
 
 	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 	//glEnable(GL_CULL_FACE);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glfwWindowHint(GLFW_SAMPLES, 4);
+	glEnable(GL_MULTISAMPLE);
 	// setup viewport size 
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
 	glfwSetWindowUserPointer(mainWindow, this);
+
+	return 0;
 }
 
 GLfloat Window::getXChange()
@@ -147,10 +160,23 @@ void Window::handleScroll(GLFWwindow* window, double xOffset, double yOffset)
 
 	//std::cout << "FOV Scroll Change: " << yOffset << std::endl;
 }
+void Window::handleMouseButtons(GLFWwindow* window, int button, int action, int mods)
+{
+	Window* theWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+		theWindow->leftMouseClicked = true;
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+		theWindow->leftMouseClicked = false;
+	}
+}
 
 void Window::createCallbacks()
 {
 	glfwSetKeyCallback(mainWindow, handleKeys);
 	glfwSetCursorPosCallback(mainWindow, handleMouse);
 	glfwSetScrollCallback(mainWindow, handleScroll);
+	glfwSetMouseButtonCallback(mainWindow, handleMouseButtons);
 }

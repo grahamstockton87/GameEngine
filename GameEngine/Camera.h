@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include "Mesh.h"
 #include "Triangle.h"
+#include "BoundingBox.h"
 
 class Camera {
 public:
@@ -15,9 +16,9 @@ public:
 
 
 	void keyControl(bool* keys, GLfloat deltaTime);
-	void mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, GLfloat deltaTime); 
+	void mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, bool leftClicked, GLfloat deltaTime);
 	void updatePhysics(GLfloat deltaTime);
-	bool boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float& outGroundLevel);
+	bool boxCollision(const BoundingBox& box, GLfloat deltaTime, float& outGroundLevel);
 	void setPostion(glm::vec3 pos);
 
 	glm::vec3 getCameraPostion();
@@ -61,16 +62,11 @@ private:
 
 	GLfloat fov;
 
-	
-
-
 	bool prevJumpPressed = false;
-
-	
 
 	void update();
 
-	bool intersects(const Mesh::BoundingBox& box) const;
+	bool intersects(const BoundingBox& box) const;
 
 };
 

@@ -1,6 +1,8 @@
 ﻿#include "Camera.h"
 #include <iostream>
 #include "Mesh.h"
+#include "BoundingBox.h"
+
 Camera::Camera()
 {
 }
@@ -67,7 +69,9 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 }
 
 
-void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, GLfloat deltaTime)
+
+
+void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, bool leftClicked, GLfloat deltaTime)
 {
 	GLfloat velocity = turnSpeed * deltaTime;
 	xChange *= velocity;
@@ -117,7 +121,7 @@ void Camera::updatePhysics(GLfloat deltaTime)
 
 
 
-bool Camera::boxCollision(const Mesh::BoundingBox& box, GLfloat deltaTime, float& outGroundLevel)
+bool Camera::boxCollision(const BoundingBox& box, GLfloat deltaTime, float& outGroundLevel)
 {
 	const float epsilon = 0.5f;
 
@@ -212,7 +216,7 @@ void Camera::update()
 
 
 }
-bool Camera::intersects(const Mesh::BoundingBox& box) const
+bool Camera::intersects(const BoundingBox& box) const
 {
 	float feet = position.y - radiusY;
 	bool xInside = (position.x >= box.min.x && position.x <= box.max.x);
@@ -221,8 +225,6 @@ bool Camera::intersects(const Mesh::BoundingBox& box) const
 
 	return xInside && yInside && zInside;
 }
-
-
 
 Camera::~Camera()
 {

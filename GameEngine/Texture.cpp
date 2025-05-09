@@ -21,7 +21,7 @@ Texture::Texture(std::string fileLoc)
 
 bool Texture::LoadTextureA()
 {
-	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 0);
+	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 4);
 	if (!texData) {
 		printf("Failed to find: %s\n", fileLocation);
 		return false;
@@ -44,7 +44,7 @@ bool Texture::LoadTextureA()
 }
 bool Texture::LoadTexture()
 {
-	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 0);
+	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 3);
 	if (!texData) {
 		printf("Failed to find: %s\n", fileLocation);
 		return false;

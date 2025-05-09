@@ -1,4 +1,5 @@
 #include "Model.h"
+#include <iostream>
 
 Model::Model(){}
 
@@ -28,24 +29,15 @@ void Model::RenderModel()
 	}
 }
 
-void Model::CLearModel()
+void Model::ClearModel()
 {
-	for (size_t i = 0; i < meshList.size(); i++) {
-		if (meshList[i]) {
-			delete meshList[i];
-			meshList[i] = nullptr;
-		}
-	}
-	for (size_t i = 0; i < textureList.size(); i++) {
-		if (textureList[i]) {
-			delete textureList[i];
-			textureList[i] = nullptr;
-		}
-	}
+	meshList.clear();       // unique_ptr auto-deletes
+	textureList.clear();    // unique_ptr auto-deletes
 }
 
 Model::~Model()
 {
+	ClearModel();
 }
 
 void Model::LoadNode(aiNode* node, const aiScene* scene)
@@ -66,13 +58,14 @@ void Model::LoadMesh(aiMesh* mesh, const aiScene* scene)
 	for (size_t i = 0; i < mesh->mNumVertices; i++) {
 		vertices.insert(vertices.end(), { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z });
 		if (mesh->mTextureCoords[0]) {
-			vertices.insert(vertices.end(), { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y});
+			vertices.insert(vertices.end(), { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y });
 		}
 		else {
-			vertices.insert(vertices.end(), { 0.0f, 0.0f});
+			vertices.insert(vertices.end(), { 0.0f, 0.0f });
 		}
 		vertices.insert(vertices.end(), { -mesh->mNormals[i].x, -mesh->mNormals[i].y, -mesh->mNormals[i].z });
 	}
+
 	for (size_t i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];
 		for (size_t j = 0; j < face.mNumIndices; j++) {
@@ -80,10 +73,19 @@ void Model::LoadMesh(aiMesh* mesh, const aiScene* scene)
 		}
 	}
 
-	Mesh* newMesh = new Mesh(&vertices[0], &indices[0], vertices.size(), indices.size());
+	auto newMesh = std::make_unique<Mesh>(&vertices[0], &indices[0], vertices.size(), indices.size());
 	newMesh->CreateMesh();
-	meshList.push_back(newMesh);
+	//std::cout << *newMesh << std::endl;
+	meshList.push_back(std::move(newMesh));
 	meshToTex.push_back(mesh->mMaterialIndex);
+}
+
+void Model::updateVerticesMesh()
+{
+	//std::cout << meshList.size();
+	for (const auto& mesh : meshList) {
+		mesh->updateVertices();
+	}
 }
 
 void Model::LoadMaterials(const aiScene* scene)
@@ -92,30 +94,25 @@ void Model::LoadMaterials(const aiScene* scene)
 
 	for (size_t i = 0; i < scene->mNumMaterials; i++) {
 		aiMaterial* material = scene->mMaterials[i];
-
 		textureList[i] = nullptr;
 
 		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
 			aiString path;
 			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-				int idx = std::string(path.data).rfind("\\");
-				std::string fileName = std::string(path.data).substr(idx + 1);
-
-				std::string texPath = std::string("Textures/") + fileName;
-
-				textureList[i] = new Texture(texPath);
-
-				if (!textureList[i]->LoadTexture()) {
-					printf("Failed to load texture at: %s", texPath);
-					//SAFE_DELETE(textureList[i]);
-					delete textureList[i];
-					textureList[i] = nullptr;
+				std::string texPath = "Textures/" + std::string(path.C_Str());
+				auto texture = std::make_unique<Texture>(texPath);
+				if (!texture->LoadTexture()) {
+					texture = std::make_unique<Texture>("Textures/plain.png");
+					texture->LoadTextureA();
 				}
+				textureList[i] = std::move(texture);
 			}
 		}
+
 		if (!textureList[i]) {
-			textureList[i] = new Texture("Textures/plain.png");
-			textureList[i]->LoadTextureA();
+			auto defaultTex = std::make_unique<Texture>("Textures/plain.png");
+			defaultTex->LoadTextureA();
+			textureList[i] = std::move(defaultTex);
 		}
 	}
 }

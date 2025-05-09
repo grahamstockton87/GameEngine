@@ -211,10 +211,23 @@ vec4 CalcPointLights() {
 
 // Final fragment shader entry point
 void main() {
-    vec4 finalcolor = CalcDirectionalLight(); // Add directional light
-    finalcolor += CalcPointLights();          // Add point lights
-    finalcolor += CalcSpotLights();           // Add spotlights
+    // Sample the texture color (includes alpha)
+    vec4 texColor = texture(theTexture, TexCoord);
 
-    // Multiply lighting result with texture color
-    color = texture(theTexture, TexCoord) * finalcolor;
+    // Discard fully transparent fragments (optional for cutout transparency)
+    if (texColor.a < 0.01)
+        discard;
+
+    // Compute lighting normally
+    vec4 lighting = CalcDirectionalLight();
+    lighting += CalcPointLights();
+    lighting += CalcSpotLights();
+
+    // Dim the lighting by the texture alpha to simulate light passing through
+    lighting.rgb *= texColor.a;
+
+    // Final color: texture color modulated by lighting, preserving original alpha
+    color = vec4(texColor.rgb * lighting.rgb, texColor.a);
 }
+
+

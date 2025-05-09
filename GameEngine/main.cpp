@@ -8,6 +8,8 @@
 #include <mat4x4.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
+#include <gtx/string_cast.hpp>
+
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>           // Output data structure
@@ -17,6 +19,7 @@
 #include <fstream>
 #include <cmath>
 #include <vector>
+#include <memory>
 
 #include "CommonValues.h"
 
@@ -33,7 +36,7 @@
 #include "Triangle.h"
 
 const float toRadians = 3.14159265f / 180.0f;
-
+const float toDegrees = 180.0f / 3.14159265f;
 // lights class list
 unsigned int pointLightCount = 0;
 unsigned int spotLightCount = 0;
@@ -44,15 +47,17 @@ Window mainWindow;
 
 Camera camera(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 20.0f, 5.0f, 45.0f);
 
-std::vector<Mesh*> meshList;
+std::vector<std::unique_ptr<Mesh>> meshList;
 
 std::vector<Shader*> shaderList;
 Shader directionalShadowShader;
 Shader omniShadowShader;
+Shader debugLine;
+Shader debugBox;
 
 Texture brickTexture;
 Texture transparent;
-Texture wallpaper, tile;
+Texture wallpaper, tile, window;
 
 DirectionalLight mainLight;
 PointLight pointLights[MAX_POINT_LIGHTS];
@@ -80,8 +85,10 @@ bool  sizeDirection = true;
 float curSize = 0.4f;
 float maxSize = 0.8f;
 float minSize = 0.1f;
-
+bool dogIsHit = false;
 float angle = 0;
+glm::vec3 dogPosition = glm::vec3(-5.0f, 0.0f, 0.0f);  // Initial dog world position
+
 
 // Vertex Shader code
 static const char* vShader = "Shaders/shaderVert.glsl";
@@ -116,93 +123,112 @@ void calcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloa
 void RenderScene() {
     // BOX
     // translate first then move order matters
+    for (auto& mesh : meshList) {
+        mesh->ModelReset();
+    }
 
-    glm::mat4 model;
-    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-    brickTexture.UseTexture();
+    meshList[0]->translate(0.0f, 1.0f, 0.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
+    window.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[0]->RenderMesh();
-    meshList[0]->updateVertices(model);
-    meshList[0]->box = meshList[0]->CalculateBoundingBox();
+    //meshList[0]->updateVertices();
+   // meshList[0]->box = meshList[0]->CalculateBoundingBox();
 
 
     // PYRAMID
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(0.0f, 1.0f, -3.0f));
-    model = glm::rotate(model, 0 * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    meshList[1]->translate(0.0f, 1.0f, -3.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[1]->GetModel()));
+    brickTexture.UseTexture();
     dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[1]->RenderMesh();
-    meshList[1]->updateVertices(model);
-    meshList[1]->box = meshList[1]->CalculateBoundingBox();
+    //meshList[1]->updateVertices();
+   // meshList[1]->box = meshList[1]->CalculateBoundingBox();
 
 
     // FLOOR
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(0.0f, 0.1f, 0.0f));
-    model = glm::scale(model, glm::vec3(10.0f, 0.5f, 10.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    meshList[2]->translate(0.0f, 0.1f, 0.0f);
+    meshList[2]->scale(10.0f, 0.5f, 10.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[2]->GetModel()));
     tile.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[2]->RenderMesh();
-    meshList[2]->updateVertices(model);
-    meshList[2]->box = meshList[2]->CalculateBoundingBox();
+    //meshList[2]->updateVertices();
+    //meshList[2]->box = meshList[2]->CalculateBoundingBox();
 
     // reverse box
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(0.0f, 10.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    meshList[3]->translate(0.0f, 10.0f, 0.0f);
+    meshList[3]->scale(10.0f, 10.0f, 10.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[3]->GetModel()));
     wallpaper.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+    //meshList[3]->updateVertices();
+    //meshList[3]->box = meshList[3]->CalculateBoundingBox();
     meshList[3]->RenderMesh();
 
     // ramp box
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(-2.0f, 4.5f, 8.0f));
-    model = glm::rotate(model, 45 * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
-    model = glm::scale(model, glm::vec3(10.0f, 2.0f, 1.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    meshList[4]->translate(-2.0f, 4.5f, 9.0f);
+    meshList[4]->rotate(45, 0.0f, 0.0f, 1.0f);
+    meshList[4]->scale(10.0f, 2.0f, 1.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[4]->GetModel()));
     tile.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[4]->RenderMesh();
-    meshList[4]->boxCollision = false;
-    meshList[4]->updateVertices(model);
-    meshList[4]->box = meshList[4]->CalculateBoundingBox();
+    //meshList[4]->updateVertices();
+    //meshList[4]->box = meshList[4]->CalculateBoundingBox();
 
     // box2
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(5.0f, 11.0f, 8.0f));
-    //model = glm::rotate(model, 45 * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
-    model = glm::scale(model, glm::vec3(2.0f, 2.0f, 2.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+    meshList[5]->translate(7.0f, 12.5f, 0.0f);
+    meshList[5]->scale(3.5f, 0.5f, 10.0f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[5]->GetModel()));
     tile.UseTexture();
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
     meshList[5]->RenderMesh();
-    meshList[5]->updateVertices(model);
-    meshList[5]->box = meshList[5]->CalculateBoundingBox();
+    
+    //meshList[5]->updateVertices();
+    //meshList[5]->box = meshList[5]->CalculateBoundingBox();
 
     Angle += 0.1f * deltaTime;
     if (Angle > 360.0f) {
         Angle = 0.0f;
     }
-    // DOG
-    model = glm::mat4();
-    model = glm::rotate(model, Angle, glm::vec3(0.0f, 1.0f, 0.0f));
-    model = glm::translate(model, glm::vec3(-5.0f, 1.0f, 0.0f));
-    model = glm::rotate(model, -90 * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-    shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-    dog.RenderModel();
 
-    model = glm::mat4();
-    model = glm::translate(model, glm::vec3(-20.0f, 0.0f, 0.0f));
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+
+// DOG CHASING CAMERA
+    float dogSpeed = 0.5f; // Units per second (tweak as needed)
+    glm::vec3 target = camera.getCameraPostion();  // Camera/player position
+
+    // Optional: keep dog grounded by matching camera Y or fixed Y
+    //target.y = dogPosition.y; // Optional: only chase horizontally
+    target.y -= camera.radiusY;
+    glm::vec3 direction = target - dogPosition;
+    float distance = glm::length(direction);
+
+    if (distance > 0.1f) {  // Small threshold to stop jitter
+        direction = glm::normalize(direction);
+        dogPosition += direction * dogSpeed * deltaTime;
+    }
+
+    meshList[6]->translate(dogPosition.x, dogPosition.y, dogPosition.z);
+    // Optional: Rotate dog to face the camera (horizontal only)
+    glm::vec3 lookDir = glm::normalize(camera.getCameraPostion() - dogPosition);
+    float angleY = atan2(lookDir.x, lookDir.z); // Yaw rotation to face player
+    meshList[6]->rotate(angleY * toDegrees, 0.0f, 1.0f, 0.0f);
+    // Rotate to stand upright and scale
+    //model = glm::rotate(model, -90.0f * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+    meshList[6]->scale(0.1f, 0.1f, 0.1f);
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[6]->GetModel()));
     shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-    brickTexture.UseTexture();
-    land.RenderModel();
+    meshList[6]->shootable = true;
+    if (!dogIsHit) {
+        dog.RenderModel(); // only render if not hit
+    }
+
+    for (int i = 0; i < meshList.size(); i++) {
+        meshList[i]->updateVertices();
+        meshList[i]->box = meshList[i]->CalculateBoundingBox();
+    }
+    //std::cout << 6 << " MIN: " << meshList[6]->box.min << " MAX: " << meshList[6]->box.max << std::endl;
 
     glBindVertexArray(0);
 }
@@ -217,6 +243,12 @@ void CreateShaders() {
 
     omniShadowShader = Shader();
     omniShadowShader.CreateFromFiles("Shaders/omni_shadow_map_vert.glsl", "Shaders/omni_shadow_map_geom.glsl", "Shaders/omni_shadow_map_frag.glsl");
+
+    debugLine = Shader();
+    debugLine.CreateFromFiles("Shaders/debug_line_vert.glsl", "Shaders/debug_line_frag.glsl");
+
+    debugBox = Shader();
+    debugBox.CreateFromFiles("Shaders/debug_box_vert.glsl", "Shaders/debug_box_frag.glsl");
 }
 void DirectionalShadowPass(DirectionalLight* light) {
     directionalShadowShader.UseShader();
@@ -300,23 +332,40 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
     RenderScene();
 
 }
-std::vector<Triangle> ExtractTrianglesFromMesh(const Mesh* mesh) {
+std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
     std::vector<Triangle> triangles;
 
-    for (unsigned int i = 0; i < mesh->mNumOfIndices; i += 3) {
-        unsigned int i0 = mesh->mIndices[i];
-        unsigned int i1 = mesh->mIndices[i + 1];
-        unsigned int i2 = mesh->mIndices[i + 2];
+    if (mesh->mNumOfVertices != 0) {
+        for (unsigned int i = 0; i < mesh->mNumOfIndices; i += 3) {
+            unsigned int i0 = mesh->mIndices[i];
+            unsigned int i1 = mesh->mIndices[i + 1];
+            unsigned int i2 = mesh->mIndices[i + 2];
 
-        Triangle tri;
-        tri.v0 = mesh->transformedVertices[i0];
-        tri.v1 = mesh->transformedVertices[i1];
-        tri.v2 = mesh->transformedVertices[i2];
-        triangles.push_back(tri);
+            Triangle tri = Triangle();
+            tri.v0 = mesh->transformedVertices[i0];
+            tri.v1 = mesh->transformedVertices[i1];
+            tri.v2 = mesh->transformedVertices[i2];
+            triangles.push_back(tri);
+        }
+
+        return triangles;
     }
 
-    return triangles;
 }
+void scaleUVs(GLfloat* vertices, int totalFloatCount, int scale) {
+    int floatsPerVertex = 8;
+
+    int numVertices = totalFloatCount / floatsPerVertex;
+
+    for (int i = 0; i < numVertices; ++i) {
+        int offset = i * floatsPerVertex;
+
+        // UVs are at index 3 and 4
+        vertices[offset + 3] *= scale; // U
+        vertices[offset + 4] *= scale; // V
+    }
+}
+
 bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
     const glm::vec3& rayDir,
     const glm::vec3& v0,
@@ -353,6 +402,93 @@ bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
     }
 
     return false;
+}
+bool RayIntersectsAABB(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const BoundingBox& box, float maxDistance) {
+    float tMin = (box.min.x - rayOrigin.x) / rayDir.x;
+    float tMax = (box.max.x - rayOrigin.x) / rayDir.x;
+    if (tMin > tMax) std::swap(tMin, tMax);
+
+    float tyMin = (box.min.y - rayOrigin.y) / rayDir.y;
+    float tyMax = (box.max.y - rayOrigin.y) / rayDir.y;
+    if (tyMin > tyMax) std::swap(tyMin, tyMax);
+
+    if ((tMin > tyMax) || (tyMin > tMax))
+        return false;
+
+    tMin = std::max(tMin, tyMin);
+    tMax = std::min(tMax, tyMax);
+
+    float tzMin = (box.min.z - rayOrigin.z) / rayDir.z;
+    float tzMax = (box.max.z - rayOrigin.z) / rayDir.z;
+    if (tzMin > tzMax) std::swap(tzMin, tzMax);
+
+    if ((tMin > tzMax) || (tzMin > tMax))
+        return false;
+
+    tMin = std::max(tMin, tzMin);
+    tMax = std::min(tMax, tzMax);
+
+    // Final check: must be within range and ahead of origin
+    return tMin >= 0.0f && tMin <= maxDistance;
+}
+
+
+void DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::mat4& projection, const glm::mat4& view)
+{
+    static GLuint VAO = 0, VBO = 0, EBO = 0;
+    static bool initialized = false;
+
+    if (!initialized) {
+        // Only set up once
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        glBindVertexArray(VAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * 8, nullptr, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        unsigned int indices[] = {
+            0, 1, 1, 2, 2, 3, 3, 0, // bottom
+            4, 5, 5, 6, 6, 7, 7, 4, // top
+            0, 4, 1, 5, 2, 6, 3, 7  // sides
+        };
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+        initialized = true;
+    }
+
+    // Calculate corners
+    glm::vec3 corners[8] = {
+        {box.min.x, box.min.y, box.min.z},
+        {box.max.x, box.min.y, box.min.z},
+        {box.max.x, box.max.y, box.min.z},
+        {box.min.x, box.max.y, box.min.z},
+        {box.min.x, box.min.y, box.max.z},
+        {box.max.x, box.min.y, box.max.z},
+        {box.max.x, box.max.y, box.max.z},
+        {box.min.x, box.max.y, box.max.z}
+    };
+
+    // Upload corners
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(corners), corners);
+
+    // Bind shader
+    shader.UseShader();
+    glUniformMatrix4fv(shader.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(shader.GetViewLocation(), 1, GL_FALSE, glm::value_ptr(view));
+
+    // Draw
+    glBindVertexArray(VAO);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 int main() {
@@ -539,33 +675,51 @@ int main() {
         10.0f, 0.05f, 10.0f,     10.0f, 10.0f,   0.0f, -1.0f, 0.0f
     };
 
-    Mesh* cube = new Mesh(boxVertices, boxIndices, 192, 36);
+    std::unique_ptr<Mesh> cube = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
     cube->CreateMesh();
-    meshList.push_back(cube);
+    meshList.push_back(std::move(cube));
 
-    Mesh* pyramid = new Mesh(pyramidVertices, pyramidIndices, 32, 12);
+    std::unique_ptr<Mesh> pyramid = std::make_unique<Mesh>(pyramidVertices, pyramidIndices, 32, 12);
     pyramid->CreateMesh();
-    meshList.push_back(pyramid);
+    meshList.push_back(std::move(pyramid));
 
-    Mesh* floor = new Mesh(boxVertices, boxIndices, 192, 36);
+    int totalFloats = sizeof(boxVertices) / sizeof(GLfloat);
+    scaleUVs(boxVertices, totalFloats, 5);
+    std::unique_ptr<Mesh> floor = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
     floor->CreateMesh();
-    meshList.push_back(floor);
+    meshList.push_back(std::move(floor));
 
     //std::cout << "floor " << floor->box.max.y;
 
-    Mesh* cubeReverse = new Mesh(verticesReverseBox, indicesBoxReverse, 192, 36);
+    std::unique_ptr<Mesh> cubeReverse = std::make_unique<Mesh>(verticesReverseBox, indicesBoxReverse, 192, 36);
     cubeReverse->CreateMesh();
-    meshList.push_back(cubeReverse);
+    meshList.push_back(std::move(cubeReverse));
 
-    Mesh* cube2 = new Mesh(boxVertices, boxIndices, 192, 36);
-    cube2->CreateMesh();
-    meshList.push_back(cube2);
+    
+    std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+    ramp->CreateMesh();
+    ramp->ID = "ramp";
+    meshList.push_back(std::move(ramp));
 
 
-    Mesh* cube3 = new Mesh(boxVertices, boxIndices, 192, 36);
+    std::unique_ptr<Mesh> cube3 = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
     cube3->CreateMesh();
-    meshList.push_back(cube3);
+    meshList.push_back(std::move(cube3));
+
     CreateShaders();
+
+    GLuint rayVAO = 0, rayVBO = 0;
+
+    glGenVertexArrays(1, &rayVAO);
+    glGenBuffers(1, &rayVBO);
+
+    glBindVertexArray(rayVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, rayVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * 2, nullptr, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
     
     // MATERIALS  -------------------------------------------------------------------------------------------
     shinyMaterial = Material(1.0f, 128);
@@ -584,14 +738,28 @@ int main() {
     wallpaper = Texture("Textures/wallpaper.jpg");
     wallpaper.LoadTexture();
 
+    window = Texture("Textures/window2.png");
+    window.LoadTextureA();
+
     dog = Model();
     dog.LoadModel("Models/dog.obj");
 
     land = Model();
-    land.LoadModel("Models/land.obj");
+    land.LoadModel("Models/gamelevel.obj");
+
+    // update model meshehs here 
+    const auto& dogMeshes = dog.GetMeshList();
+    std::cout << "dogMeshes size: " << dogMeshes.size() << std::endl;
+
+    int i = 0;
+    for (auto& mesh : dogMeshes) {
+        meshList.push_back(std::make_unique<Mesh>(*mesh));
+        std::cout << "Moved mesh " << i << std::endl;
+        i++;
+    }
 
     // LIGHTS --------------------------------------------------------------------------------------------
-    mainLight = DirectionalLight(1024, 1024,
+    mainLight = DirectionalLight(1024*2, 1024*2,
                                 1.0f, 1.0f, 1.0f, 
                                  0.1f, 1.0f, 
                                  0.0f, -7.0f, -1.0f);
@@ -643,6 +811,32 @@ int main() {
         deltaTime = now - lastTime;
         lastTime = now;
 
+        // Move dog toward the player
+        glm::vec3 target = camera.getCameraPostion();
+        target.y -= camera.radiusY;
+        glm::vec3 direction = target - dogPosition;
+
+        float dogSpeed = 0.0f;  // Adjust speed to control how fast the dog chases
+
+        if (glm::length(direction) > 1.0f) {  // Optional: stop when close enough
+            dogPosition += glm::normalize(direction) * dogSpeed * deltaTime;
+        }
+        float epsilon = 0.1f;
+
+        // Define an AABB box around the dog
+        glm::vec3 minBound = dogPosition - glm::vec3(epsilon);
+        glm::vec3 maxBound = dogPosition + glm::vec3(epsilon);
+
+        // Check if player is within the AABB
+        bool insideBox =
+            target.x >= minBound.x && target.x <= maxBound.x &&
+            target.y >= minBound.y && target.y <= maxBound.y &&
+            target.z >= minBound.z && target.z <= maxBound.z;
+
+        if (insideBox) {
+            //std::cout << "DEAD" << std::endl;
+        }
+
         // get handle user event inputs
         glfwPollEvents();
 
@@ -654,9 +848,47 @@ int main() {
         // clear window
         camera.previousPosition = camera.position;
 
-        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), deltaTime);
+        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), mainWindow.getLeftClicked(), deltaTime);
 
-        
+        if (mainWindow.getLeftClicked()) {
+
+            glm::vec3 rayOrigin = glm::vec3(camera.getCameraPostion());
+            glm::vec3 rayDirection = camera.getCameraDirection(); // aleady normalized
+
+            float maxDistance = 2.0f;
+            // Optional: draw debug line
+            glm::vec3 rayStart = rayOrigin;
+            glm::vec3 rayEnd = rayOrigin + rayDirection * maxDistance;
+            glm::vec3 rayVerts[2] = { rayStart, rayEnd };
+
+            glBindBuffer(GL_ARRAY_BUFFER, rayVBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rayVerts), rayVerts);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            // Perform AABB intersection checks
+            for (auto& obj : meshList) {
+                if (obj->shootable) {
+                    auto box = obj->getBoundingBox();
+                    if (RayIntersectsAABB(rayOrigin, rayDirection, box, maxDistance)) {
+                        obj->ClearMesh();
+                        break;
+                    }
+                }
+            }
+            
+
+            // Ray hit test...
+            if (RayIntersectsAABB(rayOrigin, rayDirection, meshList[6]->box, maxDistance)) {
+                dogIsHit = true;
+                meshList[6]->ClearMesh();  // clears AABB and that mesh only
+            }
+
+
+        }
+
+
+
+
 
         float maxGroundLevel = 0.0f;
         bool anyGrounded = false;
@@ -665,10 +897,12 @@ int main() {
         float closestY = -FLT_MAX;
         bool hit = false;
 
-        for (Mesh* mesh : meshList) {
+
+        //std::cout << "Ramp uses box collision? " << meshList[4]->UsesBoxCollision << std::endl;
+        for (const auto& mesh : meshList) {
             if (!mesh->transformedVertices.empty()) {
                 const std::vector<Triangle> tris = ExtractTrianglesFromMesh(mesh);
-                for (const Triangle& tri : tris) {
+                for (const Triangle tri : tris) {
                     float hitY;
                     if (RayIntersectsTriangle(rayOrigin, rayDir, tri.v0, tri.v1, tri.v2, hitY)) {
                         if (hitY > closestY) {
@@ -677,8 +911,25 @@ int main() {
                         }
                     }
                 }
+  
             }
         }
+//// ray casting does not work here
+//        for (int i = 0; i < meshList.size(); i++) {
+//            if (!meshList[i]->transformedVertices.empty()) {
+//                float groundY = 0.0f;
+//                if (camera.boxCollision(meshList[i]->box, deltaTime, groundY)) {
+//                    anyGrounded = true;
+//                    if (groundY > maxGroundLevel) {
+//                        maxGroundLevel = groundY;
+//                        closestY = maxGroundLevel;
+//                        hit = true;
+//                    }
+//                }
+//            }
+//        }
+
+
 
         const float groundSnapOffset = 0.001f; // small buffer to avoid falling through
 
@@ -750,7 +1001,23 @@ int main() {
         }
         RenderPass(projection, camera.calculateViewMatrix());
 
+
+        
+
+        debugLine.UseShader();
+        
+        glUniformMatrix4fv(debugLine.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(debugLine.GetViewLocation(), 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+
+        glBindVertexArray(rayVAO);
+        glDrawArrays(GL_LINES, 0, 2);
+        glBindVertexArray(0);
+
         glUseProgram(0);
+
+        debugBox.UseShader();
+        for (const auto& mesh : meshList)
+            DrawBoundingBox(mesh->box, debugBox, projection, camera.calculateViewMatrix());
 
         mainWindow.swapBuffers();
 

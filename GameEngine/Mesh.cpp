@@ -7,15 +7,53 @@ Mesh::Mesh() {
 	VBO = 0;
 	IBO = 0;
 	indexCount = 0;
+
+	model = glm::mat4(1.0f);
 }
 
 Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices, unsigned int numOfIndices)
 {
-	mVertices = vertices;
-	mIndices = indices;
+	if (!vertices || !indices || numOfVertices == 0 || numOfIndices == 0) {
+		std::cerr << "[Mesh::Mesh] ERROR: Invalid vertex/index data passed to constructor.\n";
+		mVertices = nullptr;
+		mIndices = nullptr;
+		mNumOfVertices = 0;
+		mNumOfIndices = 0;
+		return;
+	}
+
+	VAO = 0;
+	VBO = 0;
+	IBO = 0;
+	indexCount = 0;
+
 	mNumOfVertices = numOfVertices;
 	mNumOfIndices = numOfIndices;
+
+	// Allocate and copy vertex data
+	mVertices = new GLfloat[mNumOfVertices];
+	std::memcpy(mVertices, vertices, sizeof(GLfloat) * mNumOfVertices);
+
+	// Allocate and copy index data
+	mIndices = new unsigned int[mNumOfIndices];
+	std::memcpy(mIndices, indices, sizeof(unsigned int) * mNumOfIndices);
+
+	model = glm::mat4(1.0f);
 }
+Mesh::Mesh(const Mesh& other)
+{
+	mNumOfVertices = other.mNumOfVertices;
+	mNumOfIndices = other.mNumOfIndices;
+
+	mVertices = new GLfloat[mNumOfVertices];
+	std::memcpy(mVertices, other.mVertices, sizeof(GLfloat) * mNumOfVertices);
+
+	mIndices = new unsigned int[mNumOfIndices];
+	std::memcpy(mIndices, other.mIndices, sizeof(unsigned int) * mNumOfIndices);
+
+	model = other.model;
+}
+
 
 void Mesh::CreateMesh()
 {
@@ -47,10 +85,12 @@ void Mesh::CreateMesh()
 
 void Mesh::RenderMesh()
 {
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-	glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	if (IsValid) {
+		glBindVertexArray(VAO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
 }
 
 void Mesh::ClearMesh()
@@ -67,17 +107,27 @@ void Mesh::ClearMesh()
 		glDeleteVertexArrays(1, &VAO);
 		VAO = 0;
 	}
+
 	indexCount = 0;
+
+	mVertices = nullptr;
+	mIndices = nullptr;
+	mNumOfIndices = 0;
+	mNumOfVertices = 0;
+
+	transformedVertices.clear();
+	IsValid = false;
 }
 
-Mesh::BoundingBox Mesh::CalculateBoundingBox() const
+
+BoundingBox Mesh::CalculateBoundingBox() const
 {
 	BoundingBox box;
 
 	if (transformedVertices.empty()) {
 		box.min = glm::vec3(0.0f);
 		box.max = glm::vec3(0.0f);
-		std::cerr << "[Warning] Bounding box calculation: No transformed vertices.\n";
+		//std::cerr << "[Warning] Bounding box calculation: No transformed vertices.\n";
 		return box;
 	}
 	if (box.min.y == box.max.y) {
@@ -105,31 +155,77 @@ Mesh::BoundingBox Mesh::CalculateBoundingBox() const
 }
 
 
-void Mesh::updateVertices(glm::mat4 model)
+void Mesh::updateVertices()
 {
 	transformedVertices.clear();
+	const unsigned int floatsPerVertex = 8;
 
-	unsigned int vertexCount = mNumOfVertices / 8;
-	for (unsigned int i = 0; i < vertexCount; i++) {
-		GLfloat x = mVertices[i * 8 + 0];
-		GLfloat y = mVertices[i * 8 + 1];
-		GLfloat z = mVertices[i * 8 + 2];
-		mVertices[i * 8 + 3] = 0.0f;
-		mVertices[i * 8 + 4] = 0.0f;
+	if (!mVertices || mNumOfVertices == 0 || mNumOfVertices % floatsPerVertex != 0) {
+		//std::cerr << "[updateVertices] ERROR: Vertex data is invalid.\n";
+		return;
+	}
 
-		mVertices[i * 8 + 5] = 0.0f;
-		mVertices[i * 8 + 6] = 0.0f;
-		mVertices[i * 8 + 7] = 0.0f;
+	unsigned int vertexCount = mNumOfVertices / floatsPerVertex;
+	transformedVertices.resize(vertexCount); // avoid realloc every frame
 
-		glm::vec4 localPos = glm::vec4(x, y, z, 1.0f);
-		glm::vec4 worldPos = model * localPos;
+	for (unsigned int i = 0; i < vertexCount; ++i) {
+		unsigned int offset = i * floatsPerVertex;
 
-		transformedVertices.push_back(glm::vec3(worldPos));
-		//std::cout << "Vertex " << i << ": " << x << ", " << y << ", " << z << "\n";
-		//std::cout << worldPos.x << worldPos.y << worldPos.z;
+		if (offset + 2 >= mNumOfVertices) {
+			//std::cerr << "[updateVertices] ERROR: Offset out of range\n";
+			break;
+		}
+
+		GLfloat x = mVertices[offset];
+		GLfloat y = mVertices[offset + 1];
+		GLfloat z = mVertices[offset + 2];
+
+		transformedVertices[i] = glm::vec3(model * glm::vec4(x, y, z, 1.0f));
 	}
 }
 
+
+std::ostream& operator<<(std::ostream& os, const Mesh& mesh) {
+	os << "Mesh Info:\n";
+	os << " - Vertex count (floats): " << mesh.mNumOfVertices << "\n";
+	os << " - Index count: " << mesh.mNumOfIndices << "\n";
+
+	unsigned int vertexCount = mesh.mNumOfVertices / 8;
+	unsigned int maxVerticesToPrint = 10;
+
+	for (unsigned int i = 0; i < std::min(vertexCount, maxVerticesToPrint); i++) {
+		GLfloat x = mesh.mVertices[i * 8 + 0];
+		GLfloat y = mesh.mVertices[i * 8 + 1];
+		GLfloat z = mesh.mVertices[i * 8 + 2];
+
+		os << "Vertex " << i << ": ("
+			<< x << ", " << y << ", " << z << ") UVS " << mesh.mVertices[i * 8 + 3] << mesh.mVertices[i * 8 + 4] << mesh.mVertices[i * 8 + 5] << mesh.mVertices[i * 8 + 6] << mesh.mVertices[i * 8 + 7] << std::endl;
+	}
+
+	return os;
+}
+
+
+
+void Mesh::translate(GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::translate(model, glm::vec3(x, y, z));
+}
+
+void Mesh::rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::rotate(model, angle * toRadians, glm::vec3(x, y, z));
+}
+
+void Mesh::scale(GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::scale(model, glm::vec3(x, y, z));
+}
+
+void Mesh::ModelReset()
+{
+	model = glm::mat4(1.0f);
+}
 
 
 Mesh::~Mesh()

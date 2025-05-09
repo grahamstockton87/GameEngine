@@ -375,6 +375,7 @@ void Shader::CompileProgram()
 		snprintf(locBuff, sizeof(locBuff), "omniShadowMaps[%d].farPlane", i);
 		uniformOmniShadowMap[i].farPlane = glGetUniformLocation(shaderID, locBuff);
 	}
+
 }
 
 Shader::~Shader()

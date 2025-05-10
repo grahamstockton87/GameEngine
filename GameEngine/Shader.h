@@ -39,6 +39,8 @@ public:
 	GLuint GetEyePositionLocation();
 	GLuint GetOmniLightPosLocation();
 	GLuint GetFarPlaneLocation();
+	GLuint GetTextColorLocation();
+	GLuint GetTextProjectionLocation();
 
 	void SetDirectionalLight(DirectionalLight* dLight);
 	void SetPointLights(PointLight* pLight, unsigned int lightCount, unsigned int textureUnit, unsigned int offset);
@@ -61,7 +63,8 @@ private:
 		uniformSpecularIntensity, uniformShininess,
 		uniformTexture,
 		uniformDirectionalLightTransform, uniformDirectionalShadowMap,
-		uniformOmniLightPos, uniformFarPlane;
+		uniformOmniLightPos, uniformFarPlane,
+		uniformTextColor, uniformTextProjection;
 	GLuint uniformLightMatrices[6];
 
 	struct {

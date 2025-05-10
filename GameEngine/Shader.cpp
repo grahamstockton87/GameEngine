@@ -158,6 +158,16 @@ GLuint Shader::GetFarPlaneLocation()
 {
 	return uniformFarPlane;
 }
+GLuint Shader::GetTextColorLocation()
+{
+	return uniformTextColor;
+}
+
+GLuint Shader::GetTextProjectionLocation()
+{
+	return uniformTextProjection;
+}
+
 
 void Shader::SetDirectionalLight(DirectionalLight* dLight)
 {
@@ -375,6 +385,10 @@ void Shader::CompileProgram()
 		snprintf(locBuff, sizeof(locBuff), "omniShadowMaps[%d].farPlane", i);
 		uniformOmniShadowMap[i].farPlane = glGetUniformLocation(shaderID, locBuff);
 	}
+
+	uniformTextColor = glGetUniformLocation(shaderID, "textColor");
+	uniformTextProjection = glGetUniformLocation(shaderID, "projection");
+
 
 }
 

@@ -110,13 +110,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>GLM\glm;ASSIMP\include;GLEW\glew-2.1.0\include;GLFW\include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>freetype\include;GLM\glm;ASSIMP\include;GLEW\glew-2.1.0\include;GLFW\include\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>GLFW\lib-vc2022;GLEW\glew-2.1.0\lib\Release\x64;C:\Users\graha\Documents\Visual Studio Projects 2024\Coding Projects\GameEngine\GameEngine\ASSIMP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc143-mtd.lib;glew32.lib;glfw3_mt.lib;opengl32.lib;user32.lib;gdi32.lib;shell32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>freetype\lib;GLFW\lib-vc2022;GLEW\glew-2.1.0\lib\Release\x64;C:\Users\graha\Documents\Visual Studio Projects 2024\Coding Projects\GameEngine\GameEngine\ASSIMP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc143-mtd.lib;glew32.lib;glfw3_mt.lib;opengl32.lib;user32.lib;gdi32.lib;shell32.lib;freetype.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

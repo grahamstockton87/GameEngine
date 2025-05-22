@@ -10,11 +10,12 @@
 #include <gtc/type_ptr.hpp>
 #include <gtx/string_cast.hpp>
 
-
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
 
+#include <thread>
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -28,7 +29,6 @@
 #include "CommonValues.h"
 
 #include "Mesh.h"
-#include "Shader.h"
 #include "Window.h"
 #include "Camera.h"
 #include "Texture.h"
@@ -38,6 +38,10 @@
 #include "Model.h"
 #include "Skybox.h"
 #include "Triangle.h"
+#include "Sprite.h"
+#include "AudioPlayer.h"
+#include "CollisionUtils.h"
+#include "Text.h"
 
 const float toRadians = 3.14159265f / 180.0f;
 const float toDegrees = 180.0f / 3.14159265f;
@@ -58,7 +62,8 @@ Shader directionalShadowShader;
 Shader omniShadowShader;
 Shader debugLine;
 Shader debugBox;
-Shader text;
+Shader textShader;
+Shader hudShader;
 
 Texture brickTexture;
 Texture transparent;
@@ -76,6 +81,10 @@ Model land;
 
 Skybox skybox;
 
+Sprite healthBar;
+
+TextRenderer fpsText;
+
 GLfloat deltaTime = 0.0f;
 GLfloat lastTime = 0.0f;
 
@@ -90,21 +99,16 @@ bool  sizeDirection = true;
 float curSize = 0.4f;
 float maxSize = 0.8f;
 float minSize = 0.1f;
-bool dogIsHit = false;
 float angle = 0;
+
+bool ranOnce = false;
 
 glm::vec3 dogPosition = glm::vec3(-5.0f, 0.0f, 0.0f);  // Initial dog world position
 float dogHealth = 100.0f;
+bool dogHit = false;
 
-// TEXT
-struct Character {
-	GLuint TextureID;
-	glm::ivec2 Size;
-	glm::ivec2 Bearing;
-	GLuint Advance;
-};
-GLuint textVAO, textVBO;
 
+GLuint hudVAO, hudVBO;
 
 std::map<GLchar, Character> Characters;
 
@@ -114,6 +118,172 @@ static const char* vShader = "Shaders/shaderVert.glsl";
 // Fragment Shader
 static const char* fShader = "Shaders/shaderFrag.glsl";
 
+float health = 200;
+const float maxHealth = 200;
+
+void RenderScene() {
+	// BOX
+	// translate first then move order matters
+	for (auto& mesh : meshList) {
+		mesh->ModelReset();
+	}
+
+	//meshList[0]->translate(0.0f, 1.0f, 0.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
+	//window.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[0]->RenderMesh();
+	////meshList[0]->updateVertices();
+ //  // meshList[0]->box = meshList[0]->CalculateBoundingBox();
+
+
+	//// PYRAMID
+	//meshList[1]->translate(0.0f, 1.0f, -3.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[1]->GetModel()));
+	//brickTexture.UseTexture();
+	//dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[1]->RenderMesh();
+	////meshList[1]->updateVertices();
+ //  // meshList[1]->box = meshList[1]->CalculateBoundingBox();
+
+
+	//// FLOOR
+	//meshList[2]->translate(0.0f, 0.1f, 0.0f);
+	//meshList[2]->scale(10.0f, 0.5f, 10.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[2]->GetModel()));
+	//tile.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[2]->RenderMesh();
+	////meshList[2]->updateVertices();
+	////meshList[2]->box = meshList[2]->CalculateBoundingBox();
+
+	//// reverse box
+	//meshList[3]->translate(0.0f, 10.0f, 0.0f);
+	//meshList[3]->scale(10.0f, 10.0f, 10.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[3]->GetModel()));
+	//wallpaper.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	////meshList[3]->updateVertices();
+	////meshList[3]->box = meshList[3]->CalculateBoundingBox();
+	//meshList[3]->RenderMesh();
+
+	//// ramp box
+	//meshList[4]->translate(-2.0f, 4.5f, 9.0f);
+	//meshList[4]->rotate(45, 0.0f, 0.0f, 1.0f);
+	//meshList[4]->scale(10.0f, 2.0f, 1.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[4]->GetModel()));
+	//tile.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[4]->RenderMesh();
+	//
+	////meshList[4]->updateVertices();
+	////meshList[4]->box = meshList[4]->CalculateBoundingBox();
+
+	//// box2
+	//meshList[5]->translate(7.0f, 12.5f, 0.0f);
+	//meshList[5]->scale(3.5f, 0.5f, 10.0f);
+	//
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[5]->GetModel()));
+	//tile.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[5]->RenderMesh();
+
+	//meshList[5]->updateVertices();
+	//meshList[5]->box = meshList[5]->CalculateBoundingBox();
+
+	Angle += 0.1f * deltaTime;
+	if (Angle > 360.0f) {
+		Angle = 0.0f;
+	}
+
+	
+	// DOG CHASING CAMERA
+	float dogSpeed = 1.0f; // Units per second (tweak as needed)
+
+	glm::vec3 target = camera.getCameraPostion();  // Camera/player position
+
+	// Optional: keep dog grounded by matching camera Y or fixed Y
+	//target.y = dogPosition.y; // Optional: only chase horizontally
+	target.y -= camera.radiusY;
+	glm::vec3 direction = target - dogPosition;
+	float distance = glm::length(direction);
+
+	// translate bounding box 
+	if (distance > 0.1f) {  // Small threshold to stop jitter
+		direction = glm::normalize(direction);
+		dogPosition += direction * dogSpeed * deltaTime;
+	}
+
+	if (dog.IsValid) {
+		dog.model = glm::mat4(1.0f);
+		for (const auto& mesh : dog.GetMeshList())
+			mesh->model = glm::mat4(1.0f);
+		//meshList[6]->translate(dogPosition.x, dogPosition.y, dogPosition.z);
+		dog.translate(dogPosition.x, dogPosition.y, dogPosition.z);
+		dog.scale(0.1, 0.1, 0.1);
+		//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(dog.GetMeshList()[0]->GetModel()));
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(dog.model));
+		//
+		// std::cout << glm::to_string(dog.model) << std::endl;
+		
+		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+		dog.RenderModel(uniformModel);
+
+		//dog.translate(dogPosition.x, dogPosition.y, dogPosition.z);
+		glm::vec3 lookDir = glm::normalize(camera.getCameraPostion() - dogPosition);
+		float angleY = atan2(lookDir.x, lookDir.z); // Yaw rotation to face player
+		//dog.rotate(angleY * toDegrees, 0.0f, 1.0f, 0.0f);
+		dog.rotate(angleY * toDegrees, 0.0, 1.0, 0.0);
+
+		dog.CalculateModelSpaceBoundingBox();
+	}
+
+	// fix this 
+	if (!ranOnce) {
+		for (int i = 0; i < meshList.size(); i++) {
+			meshList[i]->CalculateModelSpaceBoundingBox();
+			meshList[i]->transformBoundingBox();
+		}
+		ranOnce = true;
+	}
+
+	// ROOM
+	
+	land.model = glm::mat4(1.0f);
+	for (const auto& mesh : land.GetMeshList())
+		mesh->model = glm::mat4(1.0f);
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(land.model));
+	dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	tile.UseTexture();
+	land.RenderModel(uniformModel, true);
+
+	//std::cout << "Dog Box Min: " << glm::to_string(dog.GetBox().min)
+	//	<< " Max: " << glm::to_string(dog.GetBox().max) << std::endl;
+	glBindVertexArray(0);
+}
+void CreateShaders() {
+	Shader* shader1 = new Shader();
+	shader1->CreateFromFiles(vShader, fShader);
+	shaderList.push_back(shader1);
+
+	directionalShadowShader = Shader();
+	directionalShadowShader.CreateFromFiles("Shaders/directional_shadow_map_vert.glsl", "Shaders/directional_shadow_map_frag.glsl");
+
+	omniShadowShader = Shader();
+	omniShadowShader.CreateFromFiles("Shaders/omni_shadow_map_vert.glsl", "Shaders/omni_shadow_map_geom.glsl", "Shaders/omni_shadow_map_frag.glsl");
+
+	debugLine = Shader();
+	debugLine.CreateFromFiles("Shaders/debug_line_vert.glsl", "Shaders/debug_line_frag.glsl");
+
+	debugBox = Shader();
+	debugBox.CreateFromFiles("Shaders/debug_box_vert.glsl", "Shaders/debug_box_frag.glsl");
+
+	textShader = Shader();
+	textShader.CreateFromFiles("Shaders/font_shader_vert.glsl", "Shaders/font_shader_frag.glsl");
+
+	hudShader = Shader();
+	hudShader.CreateFromFiles("Shaders/hud_vert.glsl", "Shaders/hud_frag.glsl");
+}
 void calcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloat* vertices,
 	unsigned int verticeCount, unsigned int vLength, unsigned int normalOffset) {
 	for (size_t i = 0; i < indicieCount; i += 3) {
@@ -137,139 +307,6 @@ void calcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloa
 		vec = glm::normalize(vec);
 		vertices[nOffset] = vec.x; vertices[nOffset + 1] = vec.y; vertices[nOffset + 2] = vec.z;
 	}
-}
-void RenderScene() {
-	// BOX
-	// translate first then move order matters
-	for (auto& mesh : meshList) {
-		mesh->ModelReset();
-	}
-
-	meshList[0]->translate(0.0f, 1.0f, 0.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
-	window.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[0]->RenderMesh();
-	//meshList[0]->updateVertices();
-   // meshList[0]->box = meshList[0]->CalculateBoundingBox();
-
-
-	// PYRAMID
-	meshList[1]->translate(0.0f, 1.0f, -3.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[1]->GetModel()));
-	brickTexture.UseTexture();
-	dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[1]->RenderMesh();
-	//meshList[1]->updateVertices();
-   // meshList[1]->box = meshList[1]->CalculateBoundingBox();
-
-
-	// FLOOR
-	meshList[2]->translate(0.0f, 0.1f, 0.0f);
-	meshList[2]->scale(10.0f, 0.5f, 10.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[2]->GetModel()));
-	tile.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[2]->RenderMesh();
-	//meshList[2]->updateVertices();
-	//meshList[2]->box = meshList[2]->CalculateBoundingBox();
-
-	// reverse box
-	meshList[3]->translate(0.0f, 10.0f, 0.0f);
-	meshList[3]->scale(10.0f, 10.0f, 10.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[3]->GetModel()));
-	wallpaper.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	//meshList[3]->updateVertices();
-	//meshList[3]->box = meshList[3]->CalculateBoundingBox();
-	meshList[3]->RenderMesh();
-
-	// ramp box
-	meshList[4]->translate(-2.0f, 4.5f, 9.0f);
-	meshList[4]->rotate(45, 0.0f, 0.0f, 1.0f);
-	meshList[4]->scale(10.0f, 2.0f, 1.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[4]->GetModel()));
-	tile.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[4]->RenderMesh();
-	//meshList[4]->updateVertices();
-	//meshList[4]->box = meshList[4]->CalculateBoundingBox();
-
-	// box2
-	meshList[5]->translate(7.0f, 12.5f, 0.0f);
-	meshList[5]->scale(3.5f, 0.5f, 10.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[5]->GetModel()));
-	tile.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[5]->RenderMesh();
-
-	//meshList[5]->updateVertices();
-	//meshList[5]->box = meshList[5]->CalculateBoundingBox();
-
-	Angle += 0.1f * deltaTime;
-	if (Angle > 360.0f) {
-		Angle = 0.0f;
-	}
-
-
-	// DOG CHASING CAMERA
-	float dogSpeed = 1.0f; // Units per second (tweak as needed)
-
-	glm::vec3 target = camera.getCameraPostion();  // Camera/player position
-
-	// Optional: keep dog grounded by matching camera Y or fixed Y
-	//target.y = dogPosition.y; // Optional: only chase horizontally
-	target.y -= camera.radiusY;
-	glm::vec3 direction = target - dogPosition;
-	float distance = glm::length(direction);
-
-	if (distance > 0.1f) {  // Small threshold to stop jitter
-		direction = glm::normalize(direction);
-		dogPosition += direction * dogSpeed * deltaTime;
-	}
-
-	meshList[6]->translate(dogPosition.x, dogPosition.y, dogPosition.z);
-	// Optional: Rotate dog to face the camera (horizontal only)
-	glm::vec3 lookDir = glm::normalize(camera.getCameraPostion() - dogPosition);
-	float angleY = atan2(lookDir.x, lookDir.z); // Yaw rotation to face player
-	meshList[6]->rotate(angleY * toDegrees, 0.0f, 1.0f, 0.0f);
-	// Rotate to stand upright and scale
-	//model = glm::rotate(model, -90.0f * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
-	meshList[6]->scale(0.1f, 0.1f, 0.1f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[6]->GetModel()));
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[6]->shootable = true;
-	if (!dogIsHit) {
-		dog.RenderModel(); // only render if not hit
-	}
-
-	for (int i = 0; i < meshList.size(); i++) {
-		meshList[i]->updateVertices();
-		meshList[i]->box = meshList[i]->CalculateBoundingBox();
-	}
-	//std::cout << 6 << " MIN: " << meshList[6]->box.min << " MAX: " << meshList[6]->box.max << std::endl;
-
-	glBindVertexArray(0);
-}
-void CreateShaders() {
-	Shader* shader1 = new Shader();
-	shader1->CreateFromFiles(vShader, fShader);
-	shaderList.push_back(shader1);
-
-	directionalShadowShader = Shader();
-	directionalShadowShader.CreateFromFiles("Shaders/directional_shadow_map_vert.glsl", "Shaders/directional_shadow_map_frag.glsl");
-
-	omniShadowShader = Shader();
-	omniShadowShader.CreateFromFiles("Shaders/omni_shadow_map_vert.glsl", "Shaders/omni_shadow_map_geom.glsl", "Shaders/omni_shadow_map_frag.glsl");
-
-	debugLine = Shader();
-	debugLine.CreateFromFiles("Shaders/debug_line_vert.glsl", "Shaders/debug_line_frag.glsl");
-
-	debugBox = Shader();
-	debugBox.CreateFromFiles("Shaders/debug_box_vert.glsl", "Shaders/debug_box_frag.glsl");
-
-	text = Shader();
-	text.CreateFromFiles("Shaders/font_shader_vert.glsl", "Shaders/font_shader_frag.glsl");
 }
 void DirectionalShadowPass(DirectionalLight* light) {
 	directionalShadowShader.UseShader();
@@ -328,8 +365,6 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
 	uniformShininess = shaderList[0]->GetShininessLocation();
 
-
-
 	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 	glUniform3f(uniformEyePosition, camera.getCameraPostion().x, camera.getCameraPostion().y, camera.getCameraPostion().z);
@@ -353,26 +388,6 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	RenderScene();
 
 }
-std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
-	std::vector<Triangle> triangles;
-
-	if (mesh->mNumOfVertices != 0) {
-		for (unsigned int i = 0; i < mesh->mNumOfIndices; i += 3) {
-			unsigned int i0 = mesh->mIndices[i];
-			unsigned int i1 = mesh->mIndices[i + 1];
-			unsigned int i2 = mesh->mIndices[i + 2];
-
-			Triangle tri = Triangle();
-			tri.v0 = mesh->transformedVertices[i0];
-			tri.v1 = mesh->transformedVertices[i1];
-			tri.v2 = mesh->transformedVertices[i2];
-			triangles.push_back(tri);
-		}
-
-		return triangles;
-	}
-
-}
 void scaleUVs(GLfloat* vertices, int totalFloatCount, int scale) {
 	int floatsPerVertex = 8;
 
@@ -385,71 +400,6 @@ void scaleUVs(GLfloat* vertices, int totalFloatCount, int scale) {
 		vertices[offset + 3] *= scale; // U
 		vertices[offset + 4] *= scale; // V
 	}
-}
-bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
-	const glm::vec3& rayDir,
-	const glm::vec3& v0,
-	const glm::vec3& v1,
-	const glm::vec3& v2,
-	float& outHitY)
-{
-	const float EPSILON = 0.000001f;
-	glm::vec3 edge1 = v1 - v0;
-	glm::vec3 edge2 = v2 - v0;
-
-	glm::vec3 h = glm::cross(rayDir, edge2);
-	float a = glm::dot(edge1, h);
-	if (a > -EPSILON && a < EPSILON)
-		return false;  // Ray is parallel to triangle
-
-	float f = 1.0f / a;
-	glm::vec3 s = rayOrigin - v0;
-	float u = f * glm::dot(s, h);
-	if (u < 0.0f || u > 1.0f)
-		return false;
-
-	glm::vec3 q = glm::cross(s, edge1);
-	float v = f * glm::dot(rayDir, q);
-	if (v < 0.0f || u + v > 1.0f)
-		return false;
-
-	// At this point, we have an intersection at distance t along ray
-	float t = f * glm::dot(edge2, q);
-	if (t > EPSILON) {
-		glm::vec3 hitPoint = rayOrigin + rayDir * t;
-		outHitY = hitPoint.y;
-		return true;
-	}
-
-	return false;
-}
-bool RayIntersectsAABB(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const BoundingBox& box, float maxDistance) {
-	float tMin = (box.min.x - rayOrigin.x) / rayDir.x;
-	float tMax = (box.max.x - rayOrigin.x) / rayDir.x;
-	if (tMin > tMax) std::swap(tMin, tMax);
-
-	float tyMin = (box.min.y - rayOrigin.y) / rayDir.y;
-	float tyMax = (box.max.y - rayOrigin.y) / rayDir.y;
-	if (tyMin > tyMax) std::swap(tyMin, tyMax);
-
-	if ((tMin > tyMax) || (tyMin > tMax))
-		return false;
-
-	tMin = std::max(tMin, tyMin);
-	tMax = std::min(tMax, tyMax);
-
-	float tzMin = (box.min.z - rayOrigin.z) / rayDir.z;
-	float tzMax = (box.max.z - rayOrigin.z) / rayDir.z;
-	if (tzMin > tzMax) std::swap(tzMin, tzMax);
-
-	if ((tMin > tzMax) || (tzMin > tMax))
-		return false;
-
-	tMin = std::max(tMin, tzMin);
-	tMax = std::min(tMax, tzMax);
-
-	// Final check: must be within range and ahead of origin
-	return tMin >= 0.0f && tMin <= maxDistance;
 }
 void DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::mat4& projection, const glm::mat4& view)
 {
@@ -508,127 +458,13 @@ void DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::mat4& pr
 	glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
-bool LoadText(const std::string& fontPath)
-{
-	FT_Library ft;
-	if (FT_Init_FreeType(&ft)) {
-		std::cerr << "Failed to initialize FreeType Library\n";
-		return false;
-	}
 
-	FT_Face face;
-	if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
-		std::cerr << "Failed to load font: " << fontPath << "\n";
-		return false;
-	}
-
-	FT_Set_Pixel_Sizes(face, 0, 48);
-
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	for (GLubyte c = 0; c < 128; c++)
-	{
-		if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-		{
-			std::cerr << "Failed to load Glyph: " << c << "\n";
-			continue;
-		}
-
-		GLuint texture;
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
-
-		glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			GL_RED,
-			face->glyph->bitmap.width,
-			face->glyph->bitmap.rows,
-			0,
-			GL_RED,
-			GL_UNSIGNED_BYTE,
-			face->glyph->bitmap.buffer
-		);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		Character character = {
-			texture,
-			glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-			glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-			static_cast<GLuint>(face->glyph->advance.x)
-		};
-		Characters.insert(std::pair<GLchar, Character>(c, character));
-	}
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-	FT_Done_Face(face);
-	FT_Done_FreeType(ft);
-
-	glGenVertexArrays(1, &textVAO);
-	glGenBuffers(1, &textVBO);
-	glBindVertexArray(textVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	return true;
-}
-void RenderText(Shader& shader, const std::string& text, float x, float y, float scale, glm::vec3 color, glm::mat4 projection)
-{
-	shader.UseShader();
-	glUniform3f(shader.GetTextColorLocation(), color.x, color.y, color.z);
-	glUniformMatrix4fv(shader.GetTextProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindVertexArray(textVAO);
-
-	for (const char& c : text)
-	{
-		Character ch = Characters[c];
-
-		float xpos = x + ch.Bearing.x * scale;
-		float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
-
-		float w = ch.Size.x * scale;
-		float h = ch.Size.y * scale;
-
-		float vertices[6][4] = {
-			{ xpos,     ypos + h,   0.0f, 0.0f },
-			{ xpos,     ypos,       0.0f, 1.0f },
-			{ xpos + w, ypos,       1.0f, 1.0f },
-
-			{ xpos,     ypos + h,   0.0f, 0.0f },
-			{ xpos + w, ypos,       1.0f, 1.0f },
-			{ xpos + w, ypos + h,   1.0f, 0.0f }
-		};
-
-		glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-
-		glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		x += (ch.Advance >> 6) * scale;
-	}
-
-	glBindVertexArray(0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-}
 
 static double fpsLastTime = glfwGetTime();
 static int frameCount = 0;
 static double fps = 0.0;
 
 double deltaLastTime = glfwGetTime();
-
 
 int main() {
 
@@ -814,39 +650,52 @@ int main() {
 		10.0f, 0.05f, 10.0f,     10.0f, 10.0f,   0.0f, -1.0f, 0.0f
 	};
 
-	std::unique_ptr<Mesh> cube = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
-	cube->CreateMesh();
-	meshList.push_back(std::move(cube));
-
-	std::unique_ptr<Mesh> pyramid = std::make_unique<Mesh>(pyramidVertices, pyramidIndices, 32, 12);
-	pyramid->CreateMesh();
-	meshList.push_back(std::move(pyramid));
-
-	int totalFloats = sizeof(boxVertices) / sizeof(GLfloat);
-	scaleUVs(boxVertices, totalFloats, 5);
-	std::unique_ptr<Mesh> floor = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
-	floor->CreateMesh();
-	meshList.push_back(std::move(floor));
-
-	//std::cout << "floor " << floor->box.max.y;
-
-	std::unique_ptr<Mesh> cubeReverse = std::make_unique<Mesh>(verticesReverseBox, indicesBoxReverse, 192, 36);
-	cubeReverse->CreateMesh();
-	meshList.push_back(std::move(cubeReverse));
+	unsigned int indicesSprite[] = { 0, 1, 2, 2, 3, 0 };
+	GLfloat verticesSprite[] = {
+		// positions      // texCoords
+		mainWindow.getBufferWidth() / 2 - 200, 50.0f,     0.0f, 0.0f,
+		mainWindow.getBufferWidth() / 2, 50.0f,    1.0f, 0.0f,
+		mainWindow.getBufferWidth() / 2, 150.0f  ,    1.0f, 1.0f,
+		mainWindow.getBufferWidth() / 2 - 200, 150.0f,     0.0f, 1.0f
+	};
 
 
-	std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
-	ramp->CreateMesh();
-	ramp->ID = "ramp";
-	meshList.push_back(std::move(ramp));
+	healthBar = Sprite(verticesSprite, indicesSprite, 16, 6);
+	healthBar.CreateSprite();
 
 
-	std::unique_ptr<Mesh> cube3 = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
-	cube3->CreateMesh();
-	meshList.push_back(std::move(cube3));
+	//std::unique_ptr<Mesh> cube = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+	//cube->CreateMesh();
+	//meshList.push_back(std::move(cube));
+
+	//std::unique_ptr<Mesh> pyramid = std::make_unique<Mesh>(pyramidVertices, pyramidIndices, 32, 12);
+	//pyramid->CreateMesh();
+	//meshList.push_back(std::move(pyramid));
+
+	//int totalFloats = sizeof(boxVertices) / sizeof(GLfloat);
+	//scaleUVs(boxVertices, totalFloats, 5);
+	//std::unique_ptr<Mesh> floor = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+	//floor->CreateMesh();
+	//meshList.push_back(std::move(floor));
+
+	//std::unique_ptr<Mesh> cubeReverse = std::make_unique<Mesh>(verticesReverseBox, indicesBoxReverse, 192, 36);
+	//cubeReverse->CreateMesh();
+	//cubeReverse->moveToTopOfBox = false;
+	//meshList.push_back(std::move(cubeReverse));
+
+	//std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+	//ramp->CreateMesh();
+	//ramp->ID = "ramp";
+	//ramp->UsesBoxCollision = false;
+	//meshList.push_back(std::move(ramp));
+
+	//std::unique_ptr<Mesh> cube3 = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+	//cube3->CreateMesh();
+	//meshList.push_back(std::move(cube3));
 
 	CreateShaders();
 
+	// RAYS
 	GLuint rayVAO = 0, rayVBO = 0;
 
 	glGenVertexArrays(1, &rayVAO);
@@ -859,26 +708,17 @@ int main() {
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-	FT_Library ft;
-	FT_Init_FreeType(&ft);
-	if (!LoadText("Fonts/arial.ttf")) {
-		std::cerr << "Failed to load text system." << std::endl;
+// LOAD FONTS ----------------------------------------------------------------------------------------------------------
+	if (!fpsText.LoadFont("fonts/arial.ttf")) {
+		std::cerr << "Could not load font.\n";
+		return -1;
 	}
 
-
-	glGenVertexArrays(1, &textVAO);
-	glGenBuffers(1, &textVBO);
-	glBindVertexArray(textVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-	glEnableVertexAttribArray(0);
-
-	// MATERIALS  -------------------------------------------------------------------------------------------
+// MATERIALS  -------------------------------------------------------------------------------------------
 	shinyMaterial = Material(1.0f, 128);
 	dullMaterial = Material(0.3f, 4);
 
-	// TEXTURES --------------------------------------------------------------------------------------------
+// LOAD TEXTURES --------------------------------------------------------------------------------------------
 	brickTexture = Texture("Textures/brick.png");
 	brickTexture.LoadTextureA();
 
@@ -900,21 +740,14 @@ int main() {
 	land = Model();
 	land.LoadModel("Models/gamelevel.obj");
 
-	// update model meshehs here 
-	const auto& dogMeshes = dog.GetMeshList();
-	std::cout << "dogMeshes size: " << dogMeshes.size() << std::endl;
-
-	int i = 0;
-	for (auto& mesh : dogMeshes) {
-		meshList.push_back(std::make_unique<Mesh>(*mesh));
-		std::cout << "Moved mesh " << i << std::endl;
-		i++;
-	}
+	//for (const auto& mesh : dog.GetMeshList()) {
+	//	meshList.push_back(std::make_unique<Mesh>(*mesh));
+	//}
 
 	// LIGHTS --------------------------------------------------------------------------------------------
 	mainLight = DirectionalLight(1024 * 2, 1024 * 2,
 		1.0f, 1.0f, 1.0f,
-		0.1f, 1.0f,
+		0.1f, 0.1f,
 		0.0f, -7.0f, -1.0f);
 
 	pointLights[0] = PointLight(1024, 1024,
@@ -956,8 +789,27 @@ int main() {
 	Assimp::Importer importer;
 	// loop until know closed
 
+	AudioPlayer player;
+
+	if (!player.LoadMP3("audio/test.mp3")) {
+		return -1;
+	}
+
+	player.Play();
+	std::cout << "Playing MP3..." << std::endl;
+
 	while (!mainWindow.getShouldClose()) {
 
+		float maxGroundLevel = 0.0f;
+		bool anyGrounded = false;
+
+		float closestY = -FLT_MAX;
+		bool hit = false;
+		bool hitSide = false;
+		bool hitTop = false;
+		dogHit = false;
+		// clear window
+		camera.previousPosition = camera.position;
 
 		double currentTime = glfwGetTime();
 		frameCount++;
@@ -967,59 +819,33 @@ int main() {
 			frameCount = 0;
 			fpsLastTime = currentTime;
 		}
-
-
 		double now = glfwGetTime();
 		deltaTime = now - deltaLastTime;
 		deltaLastTime = now;
 
 
-		// Move dog toward the player
-		glm::vec3 target = camera.getCameraPostion();
-		target.y -= camera.radiusY;
-		glm::vec3 direction = target - dogPosition;
-
-		float dogSpeed = 0.0f;  // Adjust speed to control how fast the dog chases
-
-		if (glm::length(direction) > 1.0f) {  // Optional: stop when close enough
-			dogPosition += glm::normalize(direction) * dogSpeed * deltaTime;
-		}
-		float epsilon = 0.1f;
-
-		// Define an AABB box around the dog
-		glm::vec3 minBound = dogPosition - glm::vec3(epsilon);
-		glm::vec3 maxBound = dogPosition + glm::vec3(epsilon);
-
-		// Check if player is within the AABB
-		bool insideBox =
-			target.x >= minBound.x && target.x <= maxBound.x &&
-			target.y >= minBound.y && target.y <= maxBound.y &&
-			target.z >= minBound.z && target.z <= maxBound.z;
-
-		if (insideBox && meshList[6]->IsValid) {
-			std::cout << "DEAD" << std::endl;
-		}
-
 		// get handle user event inputs
 		glfwPollEvents();
 
-		if (dogHealth <= 0)
-			meshList[6]->ClearMesh();  // clears AABB and that mesh only
+		if (dogHealth <= 0) {
+			dog.IsValid = false;
+			dog.ClearModel();
+		}
+			
 
 		//update();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.getFov()), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
-
-		// clear window
-		camera.previousPosition = camera.position;
+		
 
 		camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), mainWindow.getLeftClicked(), deltaTime);
 
+// SHOOT
 		if (mainWindow.getLeftClicked()) {
 
 			glm::vec3 rayOrigin = glm::vec3(camera.getCameraPostion());
 			glm::vec3 rayDirection = camera.getCameraDirection(); // aleady normalized
 
-			float maxDistance = 2.0f;
+			float maxDistance = 4.0f;
 			// Optional: draw debug line
 			glm::vec3 rayStart = rayOrigin;
 			glm::vec3 rayEnd = rayOrigin + rayDirection * maxDistance;
@@ -1039,126 +865,74 @@ int main() {
 					}
 				}
 			}
-
-
 			// Ray hit test...
-			if (RayIntersectsAABB(rayOrigin, rayDirection, meshList[6]->box, maxDistance)) {
-				dogIsHit = true;
-				dogHealth -= 10.0f;
-			}
-
-
-		}
-
-		float maxGroundLevel = 0.0f;
-		bool anyGrounded = false;
-		glm::vec3 rayOrigin = camera.getCameraPostion();
-		glm::vec3 rayDir = glm::vec3(0, -1, 0); // down ray
-		float closestY = -FLT_MAX;
-		bool hit = false;
-		bool hitSide = false;
-
-		//std::cout << "Ramp uses box collision? " << meshList[4]->UsesBoxCollision << std::endl;
-		for (const auto& mesh : meshList) {
-			if (!mesh->transformedVertices.empty()) {
-				const std::vector<Triangle> tris = ExtractTrianglesFromMesh(mesh);
-				for (const Triangle tri : tris) {
-					float hitY;
-					if (RayIntersectsTriangle(rayOrigin, rayDir, tri.v0, tri.v1, tri.v2, hitY)) {
-						if (hitY > closestY) {
-							closestY = hitY;
-							hit = true;
-						}
-					}
-				}
-
+			if (RayIntersectsAABB(rayOrigin, rayDirection, dog.GetBox(), maxDistance)) {
+				dogHealth -= 100.0f;
 			}
 		}
+
 		glm::vec3 delta = camera.position - camera.previousPosition;
-		const float pushback = 0.05f;
-		// ray casting does not work here
-
-
-
 
 		const float groundSnapOffset = 0.001f; // small buffer to avoid falling through
-
-		if (hit) {
-			float feet = camera.position.y - camera.radiusY;
-			float distanceToGround = feet - closestY;
-
-			if (distanceToGround < 0.05f) { // Acceptable threshold
-				camera.isGrounded = true;
-				camera.groundLevel = closestY;
-				camera.position.y = closestY + camera.radiusY + groundSnapOffset;
-				camera.verticalVelocity = 0.0f;
-			}
-		}
-		else if (anyGrounded) {
-			camera.isGrounded = true;
-			camera.groundLevel = maxGroundLevel;
-			camera.position.y = camera.groundLevel + camera.radiusY;
-			camera.verticalVelocity = 0.0f;
-		}
-		else {
-			camera.isGrounded = false;
-			camera.groundLevel = 0.0f;
-		}
-		camera.keyControl(mainWindow.getKeys(), deltaTime);
+		float groundY = 0.0f;
+// MESH LIST OBJECT INTERSECTION CHECK
 		for (int i = 0; i < meshList.size(); i++) {
-			if (!meshList[i]->transformedVertices.empty()) {
-				float groundY = 0.0f;
-				if (camera.boxCollision(meshList[i]->box, deltaTime, groundY)) {
-					// Horizontal pushback logic
-					if (delta.x > 0 && camera.previousPosition.x + pushback <= meshList[i]->box.min.x && camera.position.x + pushback > meshList[i]->box.min.x) {
-						camera.position.x = camera.previousPosition.x;
-					}
-					else if (delta.x < 0 && camera.previousPosition.x - pushback >= meshList[i]->box.max.x && camera.position.x - pushback < meshList[i]->box.max.x) {
-						camera.position.x = camera.previousPosition.x;
-					}
-
-					if (delta.z > 0 && camera.previousPosition.z + pushback <= meshList[i]->box.min.z && camera.position.z + pushback > meshList[i]->box.min.z) {
-						camera.position.z = camera.previousPosition.z;
-					}
-					else if (delta.z < 0 && camera.previousPosition.z - pushback >= meshList[i]->box.max.z && camera.position.z - pushback < meshList[i]->box.max.z) {
-						camera.position.z = camera.previousPosition.z;
-					}
+			if (meshList[i]->IsValid) {
+				if (!meshList[i]->UsesBoxCollision) {
+					// if the player doesnt intersect the triangle then use box collsion
+					CheckTriangleCollsion(closestY, hit, hitSide, hitTop, meshList[i], camera);
+				}
+				else {
+					CheckBoxCollision(hit, hitSide, closestY, groundY, delta, meshList[i], camera, deltaTime);
 				}
 			}
 		}
-		//for (Mesh* mesh : meshList) {
-		//    float groundY = 0.0f;
-		//    if (camera.boxCollision(mesh->box, deltaTime, groundY)) {
-		//        anyGrounded = true;
-		//        if (groundY > maxGroundLevel) {
-		//            maxGroundLevel = groundY;
-		//        }
-		//    }
-		//}
+
+		if (dog.IsValid) {
+			CheckBoxCollision(dogHit, hitSide, closestY, groundY, delta, dog.GetBox(), true, camera, deltaTime);
+			if (dogHit && health > 0) {
+				health -= 10.0f * deltaTime;
+			}
+		}
+
+		for (auto& mesh : land.GetMeshList())
+			CheckTriangleCollsion(closestY, hit, hitSide, hitTop, mesh, camera);
+
+		GroundPlayer(hit, anyGrounded, closestY, camera);
+
+		camera.keyControl(mainWindow.getKeys(), deltaTime);
+
 		camera.isGrounded = anyGrounded;
 
 		if (anyGrounded) {
 			camera.groundLevel = maxGroundLevel;
 			camera.position.y = camera.groundLevel + camera.radiusY;
 			camera.verticalVelocity = 0.0f;
+			camera.isGrounded = true;
 		}
 		else {
 			camera.groundLevel = 0.0f;  // Reset to floor height
 		}
+		if (hitSide) {
+			glm::vec3 moveDelta = camera.position - camera.previousPosition;
 
+			// Resolve only the axis that caused the larger movement
+			if (std::abs(moveDelta.x) > std::abs(moveDelta.z)) {
+				// Restrict X movement only
+				camera.position.x = camera.previousPosition.x;
+			}
+			else {
+				// Restrict Z movement only
+				camera.position.z = camera.previousPosition.z;
+			}
+		}
 
+		//std::cout << health << std::endl;
+		healthBar.mVertices[0] = mainWindow.getBufferWidth() / 2 - health;
+		healthBar.mVertices[12] = mainWindow.getBufferWidth() / 2 - health;
+		healthBar.CreateSprite();
 
-
-		//std::cout << camera.isGrounded;
-
-		//std::cout << camera.isGrounded;
 		camera.updatePhysics(deltaTime);
-
-		//camera.updatePhysics(deltaTime);
-		//std::cout << "Min = " << meshList[0]->box.min.x << " " << meshList[0]->box.min.y << " " << meshList[0]->box.min.z << std::endl;
-		//std::cout << "Max = " << meshList[0]->box.max.x << " " << meshList[0]->box.max.y << " " << meshList[0]->box.max.z << std::endl;
-		//std::cout << "Camera: " << camera.getCameraPostion().x << " " << camera.getCameraPostion().y << " " << camera.getCameraPostion().z << std::endl;
-
 
 		DirectionalShadowPass(&mainLight);
 		// put into one list polymorpism
@@ -1170,14 +944,15 @@ int main() {
 		}
 		RenderPass(projection, camera.calculateViewMatrix());
 
-		text.UseShader();
+		// TEXT RENDER
 		glm::mat4 orthoProjection = glm::ortho(0.0f, static_cast<float>(mainWindow.getBufferWidth()),
 			0.0f, static_cast<float>(mainWindow.getBufferHeight()));
 
-		std::string fpsText = "FPS: " + std::to_string(static_cast<int>(fps));
+		std::string fpsTextValue = "FPS: " + std::to_string(static_cast<int>(fps));
 		//std::cout << fps << std::endl;
-		RenderText(text, fpsText, 20.0f, mainWindow.getBufferHeight() - 50.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), orthoProjection);
+		fpsText.RenderText(textShader, fpsTextValue, 10.0f, mainWindow.getBufferHeight() - 30.0f, 0.4f, glm::vec3(1.0f, 1.0f, 1.0f), orthoProjection);
 
+		// DEBUG LINE RAY
 		debugLine.UseShader();
 
 		glUniformMatrix4fv(debugLine.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
@@ -1189,13 +964,34 @@ int main() {
 
 		glUseProgram(0);
 
+		// Bounding box debug 
 		debugBox.UseShader();
 		for (const auto& mesh : meshList)
 			DrawBoundingBox(mesh->box, debugBox, projection, camera.calculateViewMatrix());
+		DrawBoundingBox(dog.GetBox(), debugBox, projection, camera.calculateViewMatrix());
+		BoundingBox b = dog.GetBox();
+		//std::cout << "Box Min: " << glm::to_string(b.min) << ", Max: " << glm::to_string(b.max) << std::endl;
+
+		
+		// Prepare HUD pass
+		hudShader.UseShader();
+		glUniformMatrix4fv(hudShader.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(orthoProjection));
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDisable(GL_DEPTH_TEST);
+
+		glActiveTexture(GL_TEXTURE0);
+		brickTexture.UseTexture(GL_TEXTURE0);
+		glUniform1i(hudShader.GetUniformSpriteTextureLocation(), 0);
+		healthBar.RenderSprite();
+
+		glEnable(GL_DEPTH_TEST);
+
 
 		mainWindow.swapBuffers();
 
-
+		//glDisable(GL_BLEND);
+		glUseProgram(0);  // <-- Unbind HUD shader
 	}
 	return 0;
 }

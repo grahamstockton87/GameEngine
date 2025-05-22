@@ -39,10 +39,11 @@ public:
 	const GLfloat gravity = -20.0f; // Or tweak to your scale
 	const GLfloat terminalVelocity = 50.0f;
 
-	const float height = 2.0f;
-	const float radiusX = 0.1f;    // Half-width (side-to-side)
-	const float radiusZ = 0.1f;    // Half-depth (front-to-back)
+	const float radiusX = 0.2f;    // Half-width (side-to-side)
+	const float radiusZ = 0.2f;    // Half-depth (front-to-back)
 	const float radiusY = 2.0f;
+
+	BoundingBox GetBoundingBox();
 
 	~Camera();
 private:
@@ -61,6 +62,13 @@ private:
 	GLfloat rollSpeed;
 
 	GLfloat fov;
+
+	float sprintTimer = 0.0f;              // Tracks how long sprinting has been active
+	const float maxSprintDuration = 5.0f;  // Max duration player can sprint
+	float sprintCooldownTimer = 0.0f;      // Tracks cooldown after sprinting ends
+	const float sprintCooldownDuration = 10.0f; // Cooldown duration before sprint is re-enabled
+	bool isSprinting = false;              // Sprint state
+	bool canSprint = true;                 // Whether sprinting is allowed
 
 	bool prevJumpPressed = false;
 

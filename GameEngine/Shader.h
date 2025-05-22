@@ -1,4 +1,6 @@
-#pragma once
+
+#ifndef SHADER_H
+#define SHADER_H
 
 #include <stdio.h>
 #include <string>
@@ -41,6 +43,7 @@ public:
 	GLuint GetFarPlaneLocation();
 	GLuint GetTextColorLocation();
 	GLuint GetTextProjectionLocation();
+	GLuint GetUniformSpriteTextureLocation();
 
 	void SetDirectionalLight(DirectionalLight* dLight);
 	void SetPointLights(PointLight* pLight, unsigned int lightCount, unsigned int textureUnit, unsigned int offset);
@@ -64,7 +67,8 @@ private:
 		uniformTexture,
 		uniformDirectionalLightTransform, uniformDirectionalShadowMap,
 		uniformOmniLightPos, uniformFarPlane,
-		uniformTextColor, uniformTextProjection;
+		uniformTextColor, uniformTextProjection,
+		uniformSpriteTexture;
 	GLuint uniformLightMatrices[6];
 
 	struct {
@@ -116,3 +120,4 @@ private:
 	void CompileProgram();
 };
 
+#endif // !SHADER_H

@@ -45,6 +45,8 @@ int Window::Initialize() {
 	// allow forward compatibility
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
+	glfwWindowHint(GLFW_SAMPLES, 4);
+
 	mainWindow = glfwCreateWindow(width, height, "Test Window", NULL, NULL);
 	if (!mainWindow) {
 		printf("GLFW window creation failed!");
@@ -79,7 +81,7 @@ int Window::Initialize() {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glfwWindowHint(GLFW_SAMPLES, 4);
+
 	glEnable(GL_MULTISAMPLE);
 	// setup viewport size 
 	glViewport(0, 0, bufferWidth, bufferHeight);

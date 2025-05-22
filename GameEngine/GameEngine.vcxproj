@@ -110,13 +110,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>freetype\include;GLM\glm;ASSIMP\include;GLEW\glew-2.1.0\include;GLFW\include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>OPENAL\include;freetype\include;GLM\glm;ASSIMP\include;GLEW\glew-2.1.0\include;GLFW\include\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>freetype\lib;GLFW\lib-vc2022;GLEW\glew-2.1.0\lib\Release\x64;C:\Users\graha\Documents\Visual Studio Projects 2024\Coding Projects\GameEngine\GameEngine\ASSIMP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc143-mtd.lib;glew32.lib;glfw3_mt.lib;opengl32.lib;user32.lib;gdi32.lib;shell32.lib;freetype.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>OPENAL\Lib;freetype\lib;GLFW\lib-vc2022;GLEW\glew-2.1.0\lib\Release\x64;C:\Users\graha\Documents\Visual Studio Projects 2024\Coding Projects\GameEngine\GameEngine\ASSIMP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc143-mtd.lib;glew32.lib;glfw3_mt.lib;opengl32.lib;user32.lib;gdi32.lib;shell32.lib;freetype.lib;OpenAL32.lib;alsoft.common.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AudioPlayer.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DirectionalLight.cpp" />
     <ClCompile Include="Light.cpp" />
@@ -152,14 +153,17 @@
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="SpotLight.cpp" />
+    <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\RayTracingOneWeekendApplication\RayTracingOneWeekendApplication\rtw_stb_image.h" />
     <ClInclude Include="..\..\RayTracingOneWeekendApplication\RayTracingOneWeekendApplication\stb_image.h" />
+    <ClInclude Include="AudioPlayer.h" />
     <ClInclude Include="BoundingBox.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CollisionUtils.h" />
     <ClInclude Include="CommonValues.h" />
     <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="Light.h" />
@@ -172,6 +176,8 @@
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="SpotLight.h" />
+    <ClInclude Include="Sprite.h" />
+    <ClInclude Include="Text.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="Window.h" />

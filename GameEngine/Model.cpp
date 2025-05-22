@@ -1,24 +1,28 @@
 #include "Model.h"
-#include <iostream>
 
 Model::Model(){}
 
 void Model::LoadModel(const std::string fileName)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fileName, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
+	const aiScene* scene = importer.ReadFile(fileName,
+		aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
 
-	if (!scene) {
-		printf("Model %s Failed to Load %s", fileName, importer.GetErrorString());
+	if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) {
+		printf("ERROR: Failed to load model %s: %s\n", fileName.c_str(), importer.GetErrorString());
 		return;
 	}
 
-	LoadNode(scene->mRootNode, scene);
+	printf("SUCCESS: Loaded model %s\n", fileName.c_str());
+	printf("Scene has %d meshes and %d materials\n", scene->mNumMeshes, scene->mNumMaterials);
 
+	LoadNode(scene->mRootNode, scene);
 	LoadMaterials(scene);
+
+	printf("Model loading complete. Mesh count: %zu\n", meshList.size());
 }
 
-void Model::RenderModel()
+void Model::RenderModel(GLuint uniformModelLocation)
 {
 	for (size_t i = 0; i < meshList.size(); i++) {
 		unsigned int materialIndex = meshToTex[i];
@@ -28,11 +32,28 @@ void Model::RenderModel()
 		meshList[i]->RenderMesh();
 	}
 }
+void Model::RenderModel(GLuint uniformModelLocation, bool OverrideTexture)
+{
+	for (size_t i = 0; i < meshList.size(); i++) {
+		if (!OverrideTexture) {
+			unsigned int materialIndex = meshToTex[i];
+			if (materialIndex < textureList.size() && textureList[materialIndex]) {
+				textureList[materialIndex]->UseTexture(); // Default texture
+			}
+		}
+		meshList[i]->RenderMesh();
+	}
+}
+
+
 
 void Model::ClearModel()
 {
 	meshList.clear();       // unique_ptr auto-deletes
 	textureList.clear();    // unique_ptr auto-deletes
+	for (const auto& mesh : meshList) {
+		mesh->ClearMesh();
+	}
 }
 
 Model::~Model()
@@ -75,17 +96,8 @@ void Model::LoadMesh(aiMesh* mesh, const aiScene* scene)
 
 	auto newMesh = std::make_unique<Mesh>(&vertices[0], &indices[0], vertices.size(), indices.size());
 	newMesh->CreateMesh();
-	//std::cout << *newMesh << std::endl;
 	meshList.push_back(std::move(newMesh));
 	meshToTex.push_back(mesh->mMaterialIndex);
-}
-
-void Model::updateVerticesMesh()
-{
-	//std::cout << meshList.size();
-	for (const auto& mesh : meshList) {
-		mesh->updateVertices();
-	}
 }
 
 void Model::LoadMaterials(const aiScene* scene)
@@ -116,3 +128,111 @@ void Model::LoadMaterials(const aiScene* scene)
 		}
 	}
 }
+void Model::translate(GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::translate(model, glm::vec3(x, y, z));
+	for (auto& mesh : meshList)
+		mesh->model = model;
+}
+
+void Model::rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::rotate(model, glm::radians(angle), glm::vec3(x, y, z));
+	for (auto& mesh : meshList)
+		mesh->model = model;
+}
+
+void Model::scale(GLfloat x, GLfloat y, GLfloat z)
+{
+	model = glm::scale(model, glm::vec3(x, y, z));
+	for (auto& mesh : meshList)
+		mesh->model = model;
+}
+
+void Model::CalculateModelSpaceBoundingBox() {
+	if (meshList.empty())
+		return;
+
+	const auto& mesh = meshList[0];  // Process only the first mesh
+
+	const GLfloat* vertices = mesh->mVertices;
+	unsigned int numVertices = mesh->mNumOfVertices;
+	const unsigned int floatsPerVertex = 8;
+
+	if (!vertices || numVertices < floatsPerVertex || numVertices % floatsPerVertex != 0)
+		return;
+
+	unsigned int vertexCount = numVertices / floatsPerVertex;
+
+	glm::vec3 localMin(vertices[0], vertices[1], vertices[2]);
+	glm::vec3 localMax = localMin;
+
+	for (unsigned int i = 1; i < vertexCount; ++i) {
+		unsigned int offset = i * floatsPerVertex;
+		glm::vec3 pos(vertices[offset], vertices[offset + 1], vertices[offset + 2]);
+
+		localMin = glm::min(localMin, pos);
+		localMax = glm::max(localMax, pos);
+	}
+
+	// Prepare 8 corners of the local bounding box
+	glm::vec3 corners[8] = {
+		{ localMin.x, localMin.y, localMin.z },
+		{ localMax.x, localMin.y, localMin.z },
+		{ localMin.x, localMax.y, localMin.z },
+		{ localMax.x, localMax.y, localMin.z },
+		{ localMin.x, localMin.y, localMax.z },
+		{ localMax.x, localMin.y, localMax.z },
+		{ localMin.x, localMax.y, localMax.z },
+		{ localMax.x, localMax.y, localMax.z }
+	};
+
+	// Apply the Model matrix to all corners
+	glm::vec3 transformedMin = glm::vec3(model * glm::vec4(corners[0], 1.0f));
+	glm::vec3 transformedMax = transformedMin;
+
+	for (int i = 1; i < 8; ++i) {
+		glm::vec3 transformed = glm::vec3(model * glm::vec4(corners[i], 1.0f));
+		transformedMin = glm::min(transformedMin, transformed);
+		transformedMax = glm::max(transformedMax, transformed);
+	}
+
+	untransformedBox = BoundingBox{ localMin, localMax };
+	box = BoundingBox{ transformedMin, transformedMax };
+}
+
+
+
+
+
+
+void Model::transformBoundingBox() {
+
+	glm::vec3 min = untransformedBox.min;
+	glm::vec3 max = untransformedBox.max;
+
+	glm::vec3 corners[8] = {
+		{ min.x, min.y, min.z },
+		{ max.x, min.y, min.z },
+		{ min.x, max.y, min.z },
+		{ max.x, max.y, min.z },
+		{ min.x, min.y, max.z },
+		{ max.x, min.y, max.z },
+		{ min.x, max.y, max.z },
+		{ max.x, max.y, max.z }
+	};
+
+
+	glm::vec3 transformedMin = glm::vec3(meshList[0]->GetModel() * glm::vec4(corners[0], 1.0f));
+	glm::vec3 transformedMax = transformedMin;
+
+	for (int i = 1; i < 8; ++i) {
+		glm::vec3 transformed = glm::vec3(meshList[0]->GetModel() * glm::vec4(corners[i], 1.0f));
+		transformedMin = glm::min(transformedMin, transformed);
+		transformedMax = glm::max(transformedMax, transformed);
+	}
+
+	box = BoundingBox{ transformedMin, transformedMax };
+}
+
+

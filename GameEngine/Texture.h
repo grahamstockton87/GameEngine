@@ -13,6 +13,7 @@ public:
 	bool LoadTextureA();
 
 	void UseTexture();
+	void UseTexture(GLenum textureUnit);
 	void ClearTexture();
 
 	~Texture();

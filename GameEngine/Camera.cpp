@@ -29,11 +29,50 @@ Camera::Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLf
 
 void Camera::keyControl(bool* keys, GLfloat deltaTime)
 {
-
 	GLfloat velocity = moveSpeed * deltaTime;
-	if (keys[GLFW_KEY_LEFT_SHIFT]) {
-		velocity *= 2;
+
+	// Sprinting logic with cooldown
+	if (keys[GLFW_KEY_LEFT_SHIFT] && canSprint)
+	{
+		if (sprintTimer < maxSprintDuration)
+		{
+			isSprinting = true;
+			sprintTimer += deltaTime;
+			velocity *= 2.0f;  // Sprint speed
+		}
+		else
+		{
+			// Sprint exhausted, start cooldown
+			isSprinting = false;
+			canSprint = false;
+			sprintCooldownTimer = 0.0f;
+		}
 	}
+	else
+	{
+		isSprinting = false;
+		if (!canSprint)
+		{
+			// Cooldown active
+			sprintCooldownTimer += deltaTime;
+			if (sprintCooldownTimer >= sprintCooldownDuration)
+			{
+				// Cooldown finished, reset timers
+				canSprint = true;
+				sprintTimer = 0.0f;
+			}
+		}
+		else
+		{
+			// If not sprinting, recover sprint time if partially used
+			if (sprintTimer > 0.0f)
+			{
+				sprintTimer = glm::max(0.0f, sprintTimer - deltaTime * 2.0f);
+			}
+		}
+	}
+
+	// Standard movement
 	if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) {
 		glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
 		position += flatFront * velocity;
@@ -57,18 +96,15 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 		update();
 	}
 
-	// Jump edge trigger
 	if (keys[GLFW_KEY_SPACE] && isGrounded) {
 		verticalVelocity = 10.0f;
-		//position.y += 0.1f;
 		isGrounded = false;
 	}
+
 	if (keys[GLFW_KEY_LEFT_CONTROL]) {
 		position.y -= velocity;
 	}
 }
-
-
 
 
 void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChange, bool leftClicked, GLfloat deltaTime)
@@ -119,8 +155,6 @@ void Camera::updatePhysics(GLfloat deltaTime)
 	}
 }
 
-
-
 bool Camera::boxCollision(const BoundingBox& box, GLfloat deltaTime, float& outGroundLevel)
 {
 	const float epsilon = 0.5f;
@@ -129,7 +163,7 @@ bool Camera::boxCollision(const BoundingBox& box, GLfloat deltaTime, float& outG
 		return false;
 	}
 
-	float feet = position.y - radiusY;
+	float feet = position.y - radiusY + 0.1;
 	glm::vec3 delta = position - previousPosition;
 
 	bool feetOnTop = (feet >= box.max.y - epsilon && feet <= box.max.y + epsilon);
@@ -218,13 +252,21 @@ void Camera::update()
 }
 bool Camera::intersects(const BoundingBox& box) const
 {
-	float feet = position.y - radiusY;
+	float feet = position.y - radiusY + 0.01;
 	bool xInside = (position.x >= box.min.x && position.x <= box.max.x);
 	bool yInside = (feet >= box.min.y && feet <= box.max.y);
 	bool zInside = (position.z >= box.min.z && position.z <= box.max.z);
 
 	return xInside && yInside && zInside;
 }
+
+BoundingBox Camera::GetBoundingBox()
+{
+	glm::vec3 minBound = position - glm::vec3(radiusX, radiusY, radiusZ);
+	glm::vec3 maxBound = position + glm::vec3(radiusX, radiusY, radiusZ);
+	return BoundingBox{ minBound, maxBound };
+}
+
 
 Camera::~Camera()
 {

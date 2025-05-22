@@ -160,12 +160,17 @@ GLuint Shader::GetFarPlaneLocation()
 }
 GLuint Shader::GetTextColorLocation()
 {
-	return uniformTextColor;
+    return uniformTextColor;
 }
 
 GLuint Shader::GetTextProjectionLocation()
 {
-	return uniformTextProjection;
+    return uniformTextProjection;
+}
+
+GLuint Shader::GetUniformSpriteTextureLocation()
+{
+	return uniformSpriteTexture;
 }
 
 
@@ -389,7 +394,7 @@ void Shader::CompileProgram()
 	uniformTextColor = glGetUniformLocation(shaderID, "textColor");
 	uniformTextProjection = glGetUniformLocation(shaderID, "projection");
 
-
+	uniformSpriteTexture = glGetUniformLocation(shaderID, "spriteTexture");
 }
 
 Shader::~Shader()

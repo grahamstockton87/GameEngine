@@ -114,75 +114,74 @@ void Mesh::ClearMesh()
 	mIndices = nullptr;
 	mNumOfIndices = 0;
 	mNumOfVertices = 0;
-
-	transformedVertices.clear();
 	IsValid = false;
+	//box.clear();
 }
 
 
-BoundingBox Mesh::CalculateBoundingBox() const
-{
-	BoundingBox box;
-
-	if (transformedVertices.empty()) {
-		box.min = glm::vec3(0.0f);
-		box.max = glm::vec3(0.0f);
-		//std::cerr << "[Warning] Bounding box calculation: No transformed vertices.\n";
-		return box;
-	}
-	if (box.min.y == box.max.y) {
-		box.min.y -= 0.1f;
-		box.max.y += 0.1f;
-	}
-
-
-	auto minBound = transformedVertices[0];
-	auto maxBound = transformedVertices[0];
-
-	for (const auto& vertex : transformedVertices) {
-		minBound = glm::min(minBound, vertex);
-		maxBound = glm::max(maxBound, vertex);
-	}
-
-	box.min = minBound;
-	box.max = maxBound;
-
-	// Uncomment for debugging
-	 //std::cout << "Bounding Box Min: " << box.min.x << ", " << box.min.y << ", " << box.min.z << '\n';
-	 //std::cout << "Bounding Box Max: " << box.max.x << ", " << box.max.y << ", " << box.max.z << '\n';
-
-	return box;
-}
-
-
-void Mesh::updateVertices()
-{
-	transformedVertices.clear();
+void Mesh::CalculateModelSpaceBoundingBox() {
 	const unsigned int floatsPerVertex = 8;
-
-	if (!mVertices || mNumOfVertices == 0 || mNumOfVertices % floatsPerVertex != 0) {
-		//std::cerr << "[updateVertices] ERROR: Vertex data is invalid.\n";
-		return;
-	}
+	if (!mVertices || mNumOfVertices == 0 || mNumOfVertices % floatsPerVertex != 0) return;
 
 	unsigned int vertexCount = mNumOfVertices / floatsPerVertex;
-	transformedVertices.resize(vertexCount); // avoid realloc every frame
 
-	for (unsigned int i = 0; i < vertexCount; ++i) {
+	GLfloat minX = mVertices[0];
+	GLfloat minY = mVertices[1];
+	GLfloat minZ = mVertices[2];
+	GLfloat maxX = minX;
+	GLfloat maxY = minY;
+	GLfloat maxZ = minZ;
+
+	for (unsigned int i = 1; i < vertexCount; ++i) {
 		unsigned int offset = i * floatsPerVertex;
-
-		if (offset + 2 >= mNumOfVertices) {
-			//std::cerr << "[updateVertices] ERROR: Offset out of range\n";
-			break;
-		}
-
 		GLfloat x = mVertices[offset];
 		GLfloat y = mVertices[offset + 1];
 		GLfloat z = mVertices[offset + 2];
 
-		transformedVertices[i] = glm::vec3(model * glm::vec4(x, y, z, 1.0f));
+		if (x < minX) minX = x;
+		if (y < minY) minY = y;
+		if (z < minZ) minZ = z;
+
+		if (x > maxX) maxX = x;
+		if (y > maxY) maxY = y;
+		if (z > maxZ) maxZ = z;
 	}
+
+	untransformedBox.min = glm::vec3(minX, minY, minZ);
+	untransformedBox.max = glm::vec3(maxX, maxY, maxZ);
 }
+
+
+void Mesh::transformBoundingBox()  {
+
+	glm::vec3 min = untransformedBox.min;
+	glm::vec3 max = untransformedBox.max;
+
+	glm::vec3 corners[8] = {
+		{ min.x, min.y, min.z },
+		{ max.x, min.y, min.z },
+		{ min.x, max.y, min.z },
+		{ max.x, max.y, min.z },
+		{ min.x, min.y, max.z },
+		{ max.x, min.y, max.z },
+		{ min.x, max.y, max.z },
+		{ max.x, max.y, max.z }
+	};
+
+
+	glm::vec3 transformedMin = glm::vec3(model * glm::vec4(corners[0], 1.0f));
+	glm::vec3 transformedMax = transformedMin;
+
+	for (int i = 1; i < 8; ++i) {
+		glm::vec3 transformed = glm::vec3(model * glm::vec4(corners[i], 1.0f));
+		transformedMin = glm::min(transformedMin, transformed);
+		transformedMax = glm::max(transformedMax, transformed);
+	}
+
+	box = BoundingBox{ transformedMin, transformedMax };
+}
+
+
 
 
 std::ostream& operator<<(std::ostream& os, const Mesh& mesh) {
@@ -220,6 +219,12 @@ void Mesh::rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 void Mesh::scale(GLfloat x, GLfloat y, GLfloat z)
 {
 	model = glm::scale(model, glm::vec3(x, y, z));
+}
+
+void Mesh::translateBoundingBox(float x, float y, float z)
+{
+	box.min.x += x; box.min.y += y; box.min.z += z;
+	box.max.x += x; box.max.y += y; box.max.z += z;
 }
 
 void Mesh::ModelReset()

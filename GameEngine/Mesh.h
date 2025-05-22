@@ -28,13 +28,12 @@ public:
 	unsigned int mNumOfVertices = 0;
 	unsigned int mNumOfIndices = 0;
 
+	void CalculateModelSpaceBoundingBox();
 
-	BoundingBox CalculateBoundingBox() const;
-	void updateVertices();
-
-	BoundingBox box;
+	BoundingBox box, untransformedBox;
 
 	BoundingBox getBoundingBox() { return box; }
+	void transformBoundingBox();
 
 	friend std::ostream& operator<<(std::ostream& os, const Mesh& mesh);
 
@@ -44,9 +43,11 @@ public:
 	void rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 	void scale(GLfloat x, GLfloat y, GLfloat z);
 
-	glm::mat4 GetModel() { return model; }
+	void translateBoundingBox(float x, float y, float z);
 
-	std::vector<glm::vec3> transformedVertices;
+	glm::mat4 GetModel() { return model; }
+	void SetModel(glm::mat4 modelIn) { model = modelIn; }
+	glm::mat4 model;
 
 	std::string ID = "null";
 
@@ -54,14 +55,14 @@ public:
 	bool IsValid = true;
 
 	bool shootable = false;
+
+	bool moveToTopOfBox = true;
 	~Mesh();
 private:
 	GLuint VAO, VBO, IBO;
 
 	GLsizei indexCount;
 
-
-	glm::mat4 model;
 	const float toRadians = 3.14159265f / 180.0f;
 };
 

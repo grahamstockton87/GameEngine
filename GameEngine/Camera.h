@@ -41,7 +41,7 @@ public:
 
 	const float radiusX = 0.2f;    // Half-width (side-to-side)
 	const float radiusZ = 0.2f;    // Half-depth (front-to-back)
-	const float radiusY = 2.0f;
+	const float radiusY = 1.0f;
 
 	BoundingBox GetBoundingBox();
 

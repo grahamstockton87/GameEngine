@@ -22,6 +22,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <algorithm>
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -67,7 +68,7 @@ Shader hudShader;
 
 Texture brickTexture;
 Texture transparent;
-Texture wallpaper, tile, window;
+Texture wallpaper, tile, window, healthBarTexture;
 
 DirectionalLight mainLight;
 PointLight pointLights[MAX_POINT_LIGHTS];
@@ -103,7 +104,7 @@ float angle = 0;
 
 bool ranOnce = false;
 
-glm::vec3 dogPosition = glm::vec3(-5.0f, 0.0f, 0.0f);  // Initial dog world position
+glm::vec3 dogPosition = glm::vec3(-20.0f, 10.0f, 10.0f);  // Initial dog world position
 float dogHealth = 100.0f;
 bool dogHit = false;
 
@@ -168,16 +169,14 @@ void RenderScene() {
 	//meshList[3]->RenderMesh();
 
 	//// ramp box
-	//meshList[4]->translate(-2.0f, 4.5f, 9.0f);
-	//meshList[4]->rotate(45, 0.0f, 0.0f, 1.0f);
-	//meshList[4]->scale(10.0f, 2.0f, 1.0f);
-	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[4]->GetModel()));
-	//tile.UseTexture();
-	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	//meshList[4]->RenderMesh();
-	//
-	////meshList[4]->updateVertices();
-	////meshList[4]->box = meshList[4]->CalculateBoundingBox();
+	meshList[0]->translate(-2.0f, 4.5f, 9.0f);
+	meshList[0]->rotate(45, 0.0f, 0.0f, 1.0f);
+	meshList[0]->scale(10.0f, 2.0f, 1.0f);
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
+	tile.UseTexture();
+	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	meshList[0]->RenderMesh();
+
 
 	//// box2
 	//meshList[5]->translate(7.0f, 12.5f, 0.0f);
@@ -218,26 +217,27 @@ void RenderScene() {
 		dog.model = glm::mat4(1.0f);
 		for (const auto& mesh : dog.GetMeshList())
 			mesh->model = glm::mat4(1.0f);
-		//meshList[6]->translate(dogPosition.x, dogPosition.y, dogPosition.z);
+
 		dog.translate(dogPosition.x, dogPosition.y, dogPosition.z);
+
+		glm::vec3 lookDir = glm::normalize(camera.getCameraPostion() - dogPosition);
+		float angleY = atan2(lookDir.x, lookDir.z); // Yaw rotation to face player
+		dog.rotate(angleY * toDegrees, 0.0, 1.0, 0.0);
+
 		dog.scale(0.1, 0.1, 0.1);
-		//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(dog.GetMeshList()[0]->GetModel()));
+
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(dog.model));
-		//
-		// std::cout << glm::to_string(dog.model) << std::endl;
-		
+
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		dog.RenderModel(uniformModel);
 
-		//dog.translate(dogPosition.x, dogPosition.y, dogPosition.z);
-		glm::vec3 lookDir = glm::normalize(camera.getCameraPostion() - dogPosition);
-		float angleY = atan2(lookDir.x, lookDir.z); // Yaw rotation to face player
-		//dog.rotate(angleY * toDegrees, 0.0f, 1.0f, 0.0f);
-		dog.rotate(angleY * toDegrees, 0.0, 1.0, 0.0);
 
 		dog.CalculateModelSpaceBoundingBox();
 	}
-
+	land.model = glm::mat4(1.0f);
+	for (const auto& mesh : land.GetMeshList())
+		mesh->model = glm::mat4(1.0f);
+	land.scale(3.0f, 3.0f, 3.0f);
 	// fix this 
 	if (!ranOnce) {
 		for (int i = 0; i < meshList.size(); i++) {
@@ -249,13 +249,13 @@ void RenderScene() {
 
 	// ROOM
 	
-	land.model = glm::mat4(1.0f);
-	for (const auto& mesh : land.GetMeshList())
-		mesh->model = glm::mat4(1.0f);
+	//land.scaleUVs(10.0f);
+	//for (const auto& mesh : land.GetMeshList())
+	//	mesh->model = glm::mat4(1.0f);
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(land.model));
 	dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	tile.UseTexture();
-	land.RenderModel(uniformModel, true);
+	land.RenderModel(uniformModel, false);
 
 	//std::cout << "Dog Box Min: " << glm::to_string(dog.GetBox().min)
 	//	<< " Max: " << glm::to_string(dog.GetBox().max) << std::endl;
@@ -459,7 +459,6 @@ void DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::mat4& pr
 	glBindVertexArray(0);
 }
 
-
 static double fpsLastTime = glfwGetTime();
 static int frameCount = 0;
 static double fps = 0.0;
@@ -651,13 +650,25 @@ int main() {
 	};
 
 	unsigned int indicesSprite[] = { 0, 1, 2, 2, 3, 0 };
+	float spriteWidth = 400.0f;
+	float spriteHeight = 20.0f;
+
+	float windowWidth = static_cast<float>(mainWindow.getBufferWidth());
+	float windowHeight = static_cast<float>(mainWindow.getBufferHeight());
+
+	float xCenter = windowWidth / 2.0f;
+	float yTop = windowHeight - 10.0f;
+
+	float xDisplacement = 200.0f;
+
 	GLfloat verticesSprite[] = {
-		// positions      // texCoords
-		mainWindow.getBufferWidth() / 2 - 200, 50.0f,     0.0f, 0.0f,
-		mainWindow.getBufferWidth() / 2, 50.0f,    1.0f, 0.0f,
-		mainWindow.getBufferWidth() / 2, 150.0f  ,    1.0f, 1.0f,
-		mainWindow.getBufferWidth() / 2 - 200, 150.0f,     0.0f, 1.0f
+		// positions									// texCoords
+		xDisplacement + xCenter - spriteWidth / 2, yTop,				0.0f, 0.0f,
+		xDisplacement + xCenter + spriteWidth / 2, yTop,				1.0f, 0.0f,
+		xDisplacement + xCenter + spriteWidth / 2, yTop - spriteHeight, 1.0f, 1.0f,
+		xDisplacement + xCenter - spriteWidth / 2, yTop - spriteHeight, 0.0f, 1.0f
 	};
+
 
 
 	healthBar = Sprite(verticesSprite, indicesSprite, 16, 6);
@@ -683,11 +694,11 @@ int main() {
 	//cubeReverse->moveToTopOfBox = false;
 	//meshList.push_back(std::move(cubeReverse));
 
-	//std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
-	//ramp->CreateMesh();
-	//ramp->ID = "ramp";
-	//ramp->UsesBoxCollision = false;
-	//meshList.push_back(std::move(ramp));
+	std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
+	ramp->CreateMesh();
+	ramp->ID = "ramp";
+	ramp->UsesBoxCollision = false;
+	meshList.push_back(std::move(ramp));
 
 	//std::unique_ptr<Mesh> cube3 = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
 	//cube3->CreateMesh();
@@ -734,11 +745,19 @@ int main() {
 	window = Texture("Textures/window2.png");
 	window.LoadTextureA();
 
+	healthBarTexture = Texture("Textures/healthBar.jpg");
+	healthBarTexture.LoadTexture();
+
 	dog = Model();
-	dog.LoadModel("Models/dog.obj");
+	dog.LoadModel("Models/dog.obj"); 
+	dog.rigid = false;
 
 	land = Model();
-	land.LoadModel("Models/gamelevel.obj");
+	land.LoadModel("Models/LevelDesignBase2.obj");
+	land.scaleUVs(20.0f);
+	land.model = glm::mat4(1.0f);
+	land.scale(3.0f, 3.0f, 3.0f);
+	
 
 	//for (const auto& mesh : dog.GetMeshList()) {
 	//	meshList.push_back(std::make_unique<Mesh>(*mesh));
@@ -747,23 +766,23 @@ int main() {
 	// LIGHTS --------------------------------------------------------------------------------------------
 	mainLight = DirectionalLight(1024 * 2, 1024 * 2,
 		1.0f, 1.0f, 1.0f,
-		0.1f, 0.1f,
+		0.1f, 1.0f,
 		0.0f, -7.0f, -1.0f);
 
-	pointLights[0] = PointLight(1024, 1024,
-		0.1f, 100.0f,
-		1.0f, 0.0f, 0.0f,
-		0.0f, 1.0f,
-		-4.0f, 2.0f, 0.0f,
-		0.3f, 0.1f, 0.1f);
-	pointLightCount++;
-	pointLights[1] = PointLight(1024, 1024,
-		0.1f, 100.0f,
-		0.0f, 0.0f, 1.0f,
-		0.0f, 1.0f,
-		4.0f, 2.0f, 0.0f,
-		0.3f, 0.1f, 0.1f);
-	pointLightCount++;
+	//pointLights[0] = PointLight(1024, 1024,
+	//	0.1f, 100.0f,
+	//	1.0f, 0.0f, 0.0f,
+	//	0.0f, 1.0f,
+	//	-4.0f, 2.0f, 0.0f,
+	//	0.3f, 0.1f, 0.1f);
+	//pointLightCount++;
+	//pointLights[1] = PointLight(1024, 1024,
+	//	0.1f, 100.0f,
+	//	0.0f, 0.0f, 1.0f,
+	//	0.0f, 1.0f,
+	//	4.0f, 2.0f, 0.0f,
+	//	0.3f, 0.1f, 0.1f);
+	//pointLightCount++;
 
 
 	spotLights[0] = SpotLight(1024, 1024,
@@ -771,6 +790,16 @@ int main() {
 		1.0f, 1.0f, 1.0f, // color
 		0.0f, 5.0f, // ambient diffuse
 		4.0f, 1.0f, 0.0f, // position
+		0.0f, -1.0f, 0.0f, // direction
+		0.3f, 0.1f, 0.1f, // Equation
+		10.0f); // Angle
+	spotLightCount++;
+
+	spotLights[1] = SpotLight(1024, 1024,
+		0.1f, 100.0f,
+		1.0f, 1.0f, 1.0f, // color
+		0.0f, 50.0f, // ambient diffuse
+		0.0f, 1.0f, 0.0f, // position
 		0.0f, -1.0f, 0.0f, // direction
 		0.3f, 0.1f, 0.1f, // Equation
 		10.0f); // Angle
@@ -876,17 +905,18 @@ int main() {
 		const float groundSnapOffset = 0.001f; // small buffer to avoid falling through
 		float groundY = 0.0f;
 // MESH LIST OBJECT INTERSECTION CHECK
-		for (int i = 0; i < meshList.size(); i++) {
-			if (meshList[i]->IsValid) {
-				if (!meshList[i]->UsesBoxCollision) {
-					// if the player doesnt intersect the triangle then use box collsion
-					CheckTriangleCollsion(closestY, hit, hitSide, hitTop, meshList[i], camera);
+		for (const auto& mesh : meshList) {
+			if (mesh->IsValid) {
+				if (!mesh->UsesBoxCollision) {
+					// if the player doesn't intersect the triangle then use box collision
+					CheckTriangleCollision(closestY, hit, hitSide, hitTop, mesh, camera);
 				}
 				else {
-					CheckBoxCollision(hit, hitSide, closestY, groundY, delta, meshList[i], camera, deltaTime);
+					CheckBoxCollision(hit, hitSide, closestY, groundY, delta, mesh, camera, deltaTime);
 				}
 			}
 		}
+
 
 		if (dog.IsValid) {
 			CheckBoxCollision(dogHit, hitSide, closestY, groundY, delta, dog.GetBox(), true, camera, deltaTime);
@@ -895,8 +925,9 @@ int main() {
 			}
 		}
 
-		for (auto& mesh : land.GetMeshList())
-			CheckTriangleCollsion(closestY, hit, hitSide, hitTop, mesh, camera);
+		for (auto& mesh : land.GetMeshList()) {
+			CheckTriangleCollision(closestY, hit, hitSide, hitTop, mesh, camera);
+		}
 
 		GroundPlayer(hit, anyGrounded, closestY, camera);
 
@@ -916,20 +947,30 @@ int main() {
 		if (hitSide) {
 			glm::vec3 moveDelta = camera.position - camera.previousPosition;
 
-			// Resolve only the axis that caused the larger movement
-			if (std::abs(moveDelta.x) > std::abs(moveDelta.z)) {
-				// Restrict X movement only
+			if (std::abs(moveDelta.x) >= std::abs(moveDelta.z)) {
 				camera.position.x = camera.previousPosition.x;
 			}
 			else {
-				// Restrict Z movement only
 				camera.position.z = camera.previousPosition.z;
 			}
+
 		}
 
-		//std::cout << health << std::endl;
-		healthBar.mVertices[0] = mainWindow.getBufferWidth() / 2 - health;
-		healthBar.mVertices[12] = mainWindow.getBufferWidth() / 2 - health;
+		float centerX = mainWindow.getBufferWidth() / 2.0f;
+		float fullWidth = 300.0f;
+
+		// Clamp health between 0 and fullWidth
+
+		float currentWidth = std::max(0.0f, std::min(health, fullWidth));
+
+		float leftX = centerX - fullWidth / 2.0f;
+		float rightX = leftX + currentWidth;
+
+		// Update right side of the quad only
+		healthBar.mVertices[4] = rightX;  // bottom-right x
+		healthBar.mVertices[8] = rightX;  // top-right x
+
+
 		healthBar.CreateSprite();
 
 		camera.updatePhysics(deltaTime);
@@ -954,6 +995,7 @@ int main() {
 
 		// DEBUG LINE RAY
 		debugLine.UseShader();
+		glLineWidth(10.0f); 
 
 		glUniformMatrix4fv(debugLine.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(debugLine.GetViewLocation(), 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
@@ -969,9 +1011,9 @@ int main() {
 		for (const auto& mesh : meshList)
 			DrawBoundingBox(mesh->box, debugBox, projection, camera.calculateViewMatrix());
 		DrawBoundingBox(dog.GetBox(), debugBox, projection, camera.calculateViewMatrix());
-		BoundingBox b = dog.GetBox();
-		//std::cout << "Box Min: " << glm::to_string(b.min) << ", Max: " << glm::to_string(b.max) << std::endl;
-
+		land.CalculateModelSpaceBoundingBox();
+		DrawBoundingBox(land.GetBox(), debugBox, projection, camera.calculateViewMatrix());
+		//DrawBoundingBox(land.GetBox(), debugBox, projection, camera.calculateViewMatrix());
 		
 		// Prepare HUD pass
 		hudShader.UseShader();
@@ -981,7 +1023,7 @@ int main() {
 		glDisable(GL_DEPTH_TEST);
 
 		glActiveTexture(GL_TEXTURE0);
-		brickTexture.UseTexture(GL_TEXTURE0);
+		healthBarTexture.UseTexture(GL_TEXTURE0);
 		glUniform1i(hudShader.GetUniformSpriteTextureLocation(), 0);
 		healthBar.RenderSprite();
 

@@ -36,6 +36,7 @@ public:
 	void translate(GLfloat x, GLfloat y, GLfloat z);
 	void rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 	void scale(GLfloat x, GLfloat y, GLfloat z);
+	void scaleUVs(float scale);
 
 	void CalculateModelSpaceBoundingBox();
 
@@ -45,6 +46,7 @@ public:
 
 	bool shootable = false;
 	bool IsValid = true;
+	bool rigid = true;
 
 	glm::mat4 model = glm::mat4(1.0f);
 

@@ -128,6 +128,7 @@ void Model::LoadMaterials(const aiScene* scene)
 		}
 	}
 }
+
 void Model::translate(GLfloat x, GLfloat y, GLfloat z)
 {
 	model = glm::translate(model, glm::vec3(x, y, z));
@@ -147,6 +148,23 @@ void Model::scale(GLfloat x, GLfloat y, GLfloat z)
 	model = glm::scale(model, glm::vec3(x, y, z));
 	for (auto& mesh : meshList)
 		mesh->model = model;
+}
+void Model::scaleUVs(float scale) {
+	for (auto& mesh : meshList) {
+		if (!mesh) continue;
+
+		int floatsPerVertex = 8;
+
+		int numVertices = mesh->mNumOfVertices / floatsPerVertex;
+
+		for (int i = 0; i < numVertices; ++i) {
+			int offset = i * floatsPerVertex;
+
+			mesh->mVertices[offset + 3] *= scale; // U
+			mesh->mVertices[offset + 4] *= scale; // V
+		}
+		mesh->CreateMesh(); 
+	}
 }
 
 void Model::CalculateModelSpaceBoundingBox() {
@@ -200,11 +218,6 @@ void Model::CalculateModelSpaceBoundingBox() {
 	untransformedBox = BoundingBox{ localMin, localMax };
 	box = BoundingBox{ transformedMin, transformedMax };
 }
-
-
-
-
-
 
 void Model::transformBoundingBox() {
 

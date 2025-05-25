@@ -9,6 +9,9 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <iostream>
+#include "Triangle.h"
+
 
 #include "BoundingBox.h"
 
@@ -28,6 +31,9 @@ public:
 	unsigned int mNumOfVertices = 0;
 	unsigned int mNumOfIndices = 0;
 
+	std::vector<Triangle> triangleList;
+	void UpdateTriangleList() { ExtractTrianglesFromMesh(); }
+
 	void CalculateModelSpaceBoundingBox();
 
 	BoundingBox box, untransformedBox;
@@ -38,6 +44,8 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Mesh& mesh);
 
 	bool UsesBoxCollision = true;
+
+	void UpdateBuffers();
 
 	void translate(GLfloat x, GLfloat y, GLfloat z);
 	void rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
@@ -64,5 +72,7 @@ private:
 	GLsizei indexCount;
 
 	const float toRadians = 3.14159265f / 180.0f;
+
+	std::vector<Triangle> ExtractTrianglesFromMesh();
 };
 

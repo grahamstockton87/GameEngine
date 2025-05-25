@@ -9,6 +9,8 @@ Mesh::Mesh() {
 	indexCount = 0;
 
 	model = glm::mat4(1.0f);
+
+	triangleList = ExtractTrianglesFromMesh();
 }
 
 Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices, unsigned int numOfIndices)
@@ -39,6 +41,8 @@ Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices,
 	std::memcpy(mIndices, indices, sizeof(unsigned int) * mNumOfIndices);
 
 	model = glm::mat4(1.0f);
+
+	triangleList = ExtractTrianglesFromMesh();
 }
 Mesh::Mesh(const Mesh& other)
 {
@@ -52,6 +56,8 @@ Mesh::Mesh(const Mesh& other)
 	std::memcpy(mIndices, other.mIndices, sizeof(unsigned int) * mNumOfIndices);
 
 	model = other.model;
+
+	triangleList = ExtractTrianglesFromMesh();
 }
 
 
@@ -203,7 +209,11 @@ std::ostream& operator<<(std::ostream& os, const Mesh& mesh) {
 
 	return os;
 }
-
+void Mesh::UpdateBuffers() {
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(mVertices[0]) * mNumOfVertices, mVertices, GL_STATIC_DRAW);
+}
 
 
 void Mesh::translate(GLfloat x, GLfloat y, GLfloat z)
@@ -236,4 +246,54 @@ void Mesh::ModelReset()
 Mesh::~Mesh()
 {
 	ClearMesh();
+}
+
+std::vector<Triangle> Mesh::ExtractTrianglesFromMesh() {
+	std::vector<Triangle> triangles;
+
+	// Basic validation
+	if (mNumOfVertices == 0 || mNumOfIndices == 0 || !mVertices || !mIndices)
+		return triangles;
+
+	constexpr unsigned int floatsPerVertex = 8;
+	const unsigned int totalFloatCount = mNumOfVertices * floatsPerVertex;
+	const unsigned int vertexCount = mNumOfVertices; // Already in terms of vertices
+	const glm::mat4 modelMatrix = GetModel();
+
+	for (unsigned int i = 0; i + 2 < mNumOfIndices; i += 3) {
+		const unsigned int i0 = mIndices[i];
+		const unsigned int i1 = mIndices[i + 1];
+		const unsigned int i2 = mIndices[i + 2];
+
+		// Index safety check
+		if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
+			std::cerr << "[Mesh] Invalid vertex index at triangle " << i / 3
+				<< ": " << i0 << ", " << i1 << ", " << i2 << "\n";
+			continue;
+		}
+
+		const unsigned int offset0 = i0 * floatsPerVertex;
+		const unsigned int offset1 = i1 * floatsPerVertex;
+		const unsigned int offset2 = i2 * floatsPerVertex;
+
+		// Bounds check to avoid buffer overflows
+		if (offset0 + 2 >= totalFloatCount || offset1 + 2 >= totalFloatCount || offset2 + 2 >= totalFloatCount) {
+			std::cerr << "[Mesh] Vertex buffer overflow risk at triangle " << i / 3 << "\n";
+			continue;
+		}
+
+		const glm::vec4 local0(mVertices[offset0], mVertices[offset0 + 1], mVertices[offset0 + 2], 1.0f);
+		const glm::vec4 local1(mVertices[offset1], mVertices[offset1 + 1], mVertices[offset1 + 2], 1.0f);
+		const glm::vec4 local2(mVertices[offset2], mVertices[offset2 + 1], mVertices[offset2 + 2], 1.0f);
+
+		// Transform to world space
+		Triangle tri;
+		tri.v0 = glm::vec3(modelMatrix * local0);
+		tri.v1 = glm::vec3(modelMatrix * local1);
+		tri.v2 = glm::vec3(modelMatrix * local2);
+
+		triangles.push_back(tri);
+	}
+
+	return triangles;
 }

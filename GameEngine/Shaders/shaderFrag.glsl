@@ -90,6 +90,9 @@ float CalcDirectionalShadowFactor(DirectionalLight light){
 
     float currentDepth = projCoords.z;
     vec3 normal = normalize(Normal);
+    if (!gl_FrontFacing)
+        normal = -normal;
+
     vec3 lightDir = normalize(light.direction);
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.0005);
 
@@ -132,28 +135,34 @@ float CalcOmniShadowFactor(PointLight light, int shadowIndex){
 }
 // Calculates ambient, diffuse, and specular lighting from a given direction
 vec4 CalcLightByDirection(Light light, vec3 direction, float shadowFactor) {
+    // Flip normal if back-facing
+    vec3 normal = normalize(Normal);
+    if (!gl_FrontFacing)
+        normal = -normal;
+
     // Ambient component
     vec4 ambientcolor = vec4(light.color, 1.0f) * light.ambientIntensity;
 
     // Diffuse component
-    float diffuseFactor = max(dot(normalize(Normal), normalize(direction)), 0.0f);
+    float diffuseFactor = max(dot(normal, normalize(direction)), 0.0f);
     vec4 diffusecolor = vec4(light.color * light.diffuseIntensity * diffuseFactor, 1.0f);
 
     // Specular component (Phong model)
     vec4 specularcolor = vec4(0, 0, 0, 0);
     if (diffuseFactor > 0.0f) {
-        vec3 fragToEye = normalize(eyePosition - FragPos); // Vector from fragment to eye
-        vec3 reflectedVertex = normalize(reflect(direction, normalize(Normal))); // Reflected light direction
+        vec3 fragToEye = normalize(eyePosition - FragPos);
+        vec3 reflectedVertex = normalize(reflect(direction, normal));
 
-        float specularFactor = dot(fragToEye, reflectedVertex); // View-dependent specular highlight
+        float specularFactor = dot(fragToEye, reflectedVertex);
         if (specularFactor > 0.0f) {
-            specularFactor = pow(specularFactor, material.shininess); // Apply shininess exponent
+            specularFactor = pow(specularFactor, material.shininess);
             specularcolor = vec4(light.color * material.specularIntensity * specularFactor, 1.0f);
         }
     }
 
-    return (ambientcolor + (1.0-shadowFactor) * (diffusecolor + specularcolor)); // Final light color from this source
+    return (ambientcolor + (1.0 - shadowFactor) * (diffusecolor + specularcolor));
 }
+
 
 // Calculates lighting from the directional light
 vec4 CalcDirectionalLight() {

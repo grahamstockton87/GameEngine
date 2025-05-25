@@ -47,6 +47,7 @@ int Window::Initialize() {
 
 	glfwWindowHint(GLFW_SAMPLES, 4);
 
+
 	mainWindow = glfwCreateWindow(width, height, "Test Window", NULL, NULL);
 	if (!mainWindow) {
 		printf("GLFW window creation failed!");
@@ -80,6 +81,8 @@ int Window::Initialize() {
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glDisable(GL_CULL_FACE);  // safest if your geometry needs both faces visible
 
 
 	glEnable(GL_MULTISAMPLE);

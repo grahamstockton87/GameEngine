@@ -198,19 +198,16 @@ bool AABBIntersectsTriangle(const BoundingBox& aabb, const Triangle& tri)
 	return false;
 }
 
-void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hitTop, const std::unique_ptr<Mesh>& mesh, Camera& camera)
+void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, const std::unique_ptr<Mesh>& mesh, Camera& camera)
 {
 	if (!mesh || !mesh->IsValid) return;
 
 	BoundingBox playerBox = camera.GetBoundingBox();
+
 	mesh->UpdateTriangleList();
 
 	float highestHitY = -FLT_MAX;
 	bool foundValidGround = false;
-
-	hit = false;
-	hitSide = false;
-	hitTop = false;
 
 	for (const Triangle& tri : mesh->triangleList)
 	{
@@ -222,6 +219,7 @@ void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hit
 			{
 				highestHitY = hitY;
 				foundValidGround = true;
+				//::cout << "Hit ground triangle at Y: " << hitY << std::endl;
 			}
 		}
 
@@ -233,19 +231,26 @@ void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hit
 		const float wallThreshold = 0.6f; // less than 1.0 means it's not upright
 		if (std::abs(normal.y) < wallThreshold) {
 			if (AABBIntersectsTriangle(playerBox, tri)) {
-				std::cout << "Hit wall triangle with normal: " << glm::to_string(normal) << std::endl;
+				//std::cout << "Hit wall triangle with normal: " << glm::to_string(normal) << std::endl;
 				hitSide = true;
+				hit = true;
+				wallNormal = normal;
 			}
 		}
-
-
 		// Top collision check
 		float topHitY;
 		glm::vec3 rayOrigin = camera.getCameraPostion() + glm::vec3(0, camera.radiusY, 0);
 		if (RayIntersectsTriangle(rayOrigin, glm::vec3(0, 1, 0), tri.v0, tri.v1, tri.v2, topHitY))
 		{
 			hitTop = true;
+			hit = true;
+			foundValidGround = true;
+			break; // Exit early if we hit the top of a triangle
 		}
+	}
+
+	if (!hitTop) {
+		hitTop = true;
 	}
 
 	if (foundValidGround && highestHitY > closestY)
@@ -255,47 +260,15 @@ void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hit
 	}
 }
 
-void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const std::unique_ptr<Mesh>& mesh, Camera& camera, GLfloat deltaTime) {
-	if (!mesh || !mesh->IsValid) return;
-
-	if (camera.boxCollision(mesh->box, deltaTime, groundY)) {
-		if (mesh->moveToTopOfBox)
-			closestY = mesh->box.max.y;
-		hit = true;
-
-		// Compute box dimensions
-		glm::vec3 boxSize = mesh->box.max - mesh->box.min;
-
-		// Evaluate proportions
-		float verticalSize = boxSize.y;
-		float sideSize = glm::length(glm::vec2(boxSize.x, boxSize.z));
-
-		// If it's mostly vertical (like a wall)
-		if (sideSize > 0.5f && verticalSize > sideSize * 1.5f) {  // Adjust threshold as needed
-			hitSide = true;
-			return;
-		}
-
-		// Fallback to position-based restriction (legacy behavior)
-		glm::vec3 moveDelta = camera.position - camera.previousPosition;
-
-		// Restrict X movement if intersecting on X
-		if (camera.position.x < mesh->box.min.x || camera.position.x > mesh->box.max.x) {
-			hitSide = true;
-		}
-
-		// Restrict Z movement if intersecting on Z
-		if (camera.position.z < mesh->box.min.z || camera.position.z > mesh->box.max.z) {
-			hitSide = true;
-		}
-	}
-}
 // Box Collision for box aready determined
 void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const BoundingBox& box, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime) {
 
 	if (camera.boxCollision(box, deltaTime, groundY)) {
 		if (moveToTopOfBox)
-			closestY = box.max.y;
+			groundY = box.max.y;
+		else 
+			groundY = box.min.y;
+
 		hit = true;
 
 		// Compute box dimensions
@@ -325,22 +298,31 @@ void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY,
 		}
 	}
 }
-void GroundPlayer(const bool hit, const bool anyGrounded, const float closestY, Camera& camera) {
-	float groundSnapOffset = 0.001;
-	float maxGroundLevel = 0.0f;
+// Projects the movement vector onto a plane defined by the wall normal
+glm::vec3 ProjectMovementOntoWall(const glm::vec3& moveDelta, const glm::vec3& wallNormal) {
+	return moveDelta - glm::dot(moveDelta, wallNormal) * wallNormal;
+}
 
+void GroundPlayer(bool hit, bool hitSide, glm::vec3 wallNormal, bool anyGrounded, float closestY, Camera& camera) {
+	constexpr float groundSnapOffset = 0.01f;
+	constexpr float maxGroundLevel = 0.0f;
+
+	// Handle ground collision
 	if (hit) {
 		float feet = camera.position.y - camera.radiusY;
 		float distanceToGround = feet - closestY;
 
-		if (distanceToGround < 0.05f) { // Acceptable threshold
+		if (distanceToGround < 0.1f) {
 			camera.isGrounded = true;
 			camera.groundLevel = closestY;
 			camera.position.y = closestY + camera.radiusY + groundSnapOffset;
 			camera.verticalVelocity = 0.0f;
+			return;
 		}
 	}
-	else if (anyGrounded) {
+
+	// Fallback: use anyGrounded flag if no direct ground hit
+	if (anyGrounded) {
 		camera.isGrounded = true;
 		camera.groundLevel = maxGroundLevel;
 		camera.position.y = camera.groundLevel + camera.radiusY;
@@ -351,4 +333,5 @@ void GroundPlayer(const bool hit, const bool anyGrounded, const float closestY, 
 		camera.groundLevel = 0.0f;
 	}
 }
+
 #endif // !COLLISION_H

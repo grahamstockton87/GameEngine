@@ -169,6 +169,7 @@ void RenderScene() {
 	//meshList[3]->RenderMesh();
 
 	//// ramp box
+
 	meshList[0]->translate(-2.0f, 4.5f, 9.0f);
 	meshList[0]->rotate(45, 0.0f, 0.0f, 1.0f);
 	meshList[0]->scale(10.0f, 2.0f, 1.0f);
@@ -195,7 +196,7 @@ void RenderScene() {
 		Angle = 0.0f;
 	}
 
-	
+
 	// DOG CHASING CAMERA
 	float dogSpeed = 1.0f; // Units per second (tweak as needed)
 
@@ -215,8 +216,6 @@ void RenderScene() {
 
 	if (dog.IsValid) {
 		dog.model = glm::mat4(1.0f);
-		for (const auto& mesh : dog.GetMeshList())
-			mesh->model = glm::mat4(1.0f);
 
 		dog.translate(dogPosition.x, dogPosition.y, dogPosition.z);
 
@@ -230,21 +229,17 @@ void RenderScene() {
 
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		dog.RenderModel(uniformModel);
-
-
-		dog.CalculateModelSpaceBoundingBox();
 	}
+
+	// LAND 
 	land.model = glm::mat4(1.0f);
-	for (const auto& mesh : land.GetMeshList())
-		mesh->model = glm::mat4(1.0f);
 	land.scale(3.0f, 3.0f, 3.0f);
-	// fix this 
-	if (!ranOnce) {
-		for (int i = 0; i < meshList.size(); i++) {
-			meshList[i]->CalculateModelSpaceBoundingBox();
-			meshList[i]->transformBoundingBox();
-		}
-		ranOnce = true;
+	land.CalculateModelSpaceBoundingBox();
+	
+
+	// Update Bounding boxes if not rigid
+	for (auto& mesh : meshList) {
+		mesh->CalculateModelSpaceBoundingBox();
 	}
 
 	// ROOM
@@ -254,7 +249,6 @@ void RenderScene() {
 	//	mesh->model = glm::mat4(1.0f);
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(land.model));
 	dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	tile.UseTexture();
 	land.RenderModel(uniformModel, false);
 
 	//std::cout << "Dog Box Min: " << glm::to_string(dog.GetBox().min)
@@ -757,7 +751,9 @@ int main() {
 	land.scaleUVs(20.0f);
 	land.model = glm::mat4(1.0f);
 	land.scale(3.0f, 3.0f, 3.0f);
-	
+	for (auto& mesh : land.GetMeshList()) {
+		mesh->moveToTopOfBox = false;
+	}
 
 	//for (const auto& mesh : dog.GetMeshList()) {
 	//	meshList.push_back(std::make_unique<Mesh>(*mesh));
@@ -827,16 +823,24 @@ int main() {
 	player.Play();
 	std::cout << "Playing MP3..." << std::endl;
 
+	dogHit = false;
+	float maxGroundLevel = 0.0f;
+	bool anyGrounded = false;
+
+	float closestY = -FLT_MAX;
+	bool hit = false;
+	bool hitSide = false;
+	bool hitTop = false;
+
+
 	while (!mainWindow.getShouldClose()) {
 
-		float maxGroundLevel = 0.0f;
-		bool anyGrounded = false;
-
-		float closestY = -FLT_MAX;
-		bool hit = false;
-		bool hitSide = false;
-		bool hitTop = false;
+		closestY = -FLT_MAX;
 		dogHit = false;
+
+		glm::vec3 wallNormal = glm::vec3(0.0f);
+
+		
 		// clear window
 		camera.previousPosition = camera.position;
 
@@ -904,21 +908,21 @@ int main() {
 
 		const float groundSnapOffset = 0.001f; // small buffer to avoid falling through
 		float groundY = 0.0f;
-// MESH LIST OBJECT INTERSECTION CHECK
+
+		// MESH LIST OBJECT INTERSECTION CHECK
 		for (const auto& mesh : meshList) {
 			if (mesh->IsValid) {
 				if (!mesh->UsesBoxCollision) {
-					// if the player doesn't intersect the triangle then use box collision
-					CheckTriangleCollision(closestY, hit, hitSide, hitTop, mesh, camera);
+					CheckTriangleCollision(closestY, hit, hitSide, hitTop, wallNormal, mesh, camera);
 				}
 				else {
-					CheckBoxCollision(hit, hitSide, closestY, groundY, delta, mesh, camera, deltaTime);
+					CheckBoxCollision(hit, hitSide, closestY, groundY, delta, mesh->box, true, camera, deltaTime);
 				}
 			}
 		}
 
-
 		if (dog.IsValid) {
+			dog.CalculateModelSpaceBoundingBox();
 			CheckBoxCollision(dogHit, hitSide, closestY, groundY, delta, dog.GetBox(), true, camera, deltaTime);
 			if (dogHit && health > 0) {
 				health -= 10.0f * deltaTime;
@@ -926,50 +930,29 @@ int main() {
 		}
 
 		for (auto& mesh : land.GetMeshList()) {
-			CheckTriangleCollision(closestY, hit, hitSide, hitTop, mesh, camera);
+			//CheckBoxCollision(hit, hitSide, closestY, groundY, delta, mesh->getBoundingBox(), true, camera, deltaTime);
+			CheckTriangleCollision(closestY, hit, hitSide, hitTop, wallNormal, mesh, camera);
 		}
 
-		GroundPlayer(hit, anyGrounded, closestY, camera);
+		GroundPlayer(hit, hitSide, wallNormal, anyGrounded, closestY, camera);
 
 		camera.keyControl(mainWindow.getKeys(), deltaTime);
 
-		camera.isGrounded = anyGrounded;
-
-		if (anyGrounded) {
-			camera.groundLevel = maxGroundLevel;
-			camera.position.y = camera.groundLevel + camera.radiusY;
-			camera.verticalVelocity = 0.0f;
-			camera.isGrounded = true;
-		}
-		else {
-			camera.groundLevel = 0.0f;  // Reset to floor height
-		}
-		if (hitSide) {
+		// Handle side collision and wall sliding
+		if (hitSide && glm::length(wallNormal) > 0.0f) {
 			glm::vec3 moveDelta = camera.position - camera.previousPosition;
-
-			if (std::abs(moveDelta.x) >= std::abs(moveDelta.z)) {
-				camera.position.x = camera.previousPosition.x;
-			}
-			else {
-				camera.position.z = camera.previousPosition.z;
-			}
-
+			glm::vec3 slideVector = ProjectMovementOntoWall(moveDelta, wallNormal);
+			camera.position = camera.previousPosition + slideVector; // Optionally add: + slideVector;
 		}
 
 		float centerX = mainWindow.getBufferWidth() / 2.0f;
-		float fullWidth = 300.0f;
 
-		// Clamp health between 0 and fullWidth
-
-		float currentWidth = std::max(0.0f, std::min(health, fullWidth));
-
-		float leftX = centerX - fullWidth / 2.0f;
-		float rightX = leftX + currentWidth;
+		float currentWidth = (health / 100.0f) * spriteWidth; // Scale health bar width based on health percentage
+		float rightX = centerX + currentWidth;
 
 		// Update right side of the quad only
 		healthBar.mVertices[4] = rightX;  // bottom-right x
 		healthBar.mVertices[8] = rightX;  // top-right x
-
 
 		healthBar.CreateSprite();
 
@@ -1011,7 +994,6 @@ int main() {
 		for (const auto& mesh : meshList)
 			DrawBoundingBox(mesh->box, debugBox, projection, camera.calculateViewMatrix());
 		DrawBoundingBox(dog.GetBox(), debugBox, projection, camera.calculateViewMatrix());
-		land.CalculateModelSpaceBoundingBox();
 		DrawBoundingBox(land.GetBox(), debugBox, projection, camera.calculateViewMatrix());
 		//DrawBoundingBox(land.GetBox(), debugBox, projection, camera.calculateViewMatrix());
 		

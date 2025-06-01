@@ -11,6 +11,8 @@ Mesh::Mesh() {
 	model = glm::mat4(1.0f);
 
 	triangleList = ExtractTrianglesFromMesh();
+
+	CalculateModelSpaceBoundingBox();
 }
 
 Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices, unsigned int numOfIndices)
@@ -43,6 +45,9 @@ Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices,
 	model = glm::mat4(1.0f);
 
 	triangleList = ExtractTrianglesFromMesh();
+
+	CalculateModelSpaceBoundingBox();
+
 }
 Mesh::Mesh(const Mesh& other)
 {
@@ -58,6 +63,8 @@ Mesh::Mesh(const Mesh& other)
 	model = other.model;
 
 	triangleList = ExtractTrianglesFromMesh();
+
+	CalculateModelSpaceBoundingBox();
 }
 
 
@@ -155,6 +162,8 @@ void Mesh::CalculateModelSpaceBoundingBox() {
 
 	untransformedBox.min = glm::vec3(minX, minY, minZ);
 	untransformedBox.max = glm::vec3(maxX, maxY, maxZ);
+
+	transformBoundingBox();
 }
 
 
@@ -258,7 +267,7 @@ std::vector<Triangle> Mesh::ExtractTrianglesFromMesh() {
 	constexpr unsigned int floatsPerVertex = 8;
 	const unsigned int totalFloatCount = mNumOfVertices * floatsPerVertex;
 	const unsigned int vertexCount = mNumOfVertices; // Already in terms of vertices
-	const glm::mat4 modelMatrix = GetModel();
+	const glm::mat4 modelMatrix = model;
 
 	for (unsigned int i = 0; i + 2 < mNumOfIndices; i += 3) {
 		const unsigned int i0 = mIndices[i];

@@ -32,7 +32,7 @@ public:
 	unsigned int mNumOfIndices = 0;
 
 	std::vector<Triangle> triangleList;
-	void UpdateTriangleList() { ExtractTrianglesFromMesh(); }
+	void UpdateTriangleList() { triangleList = ExtractTrianglesFromMesh(); }
 
 	void CalculateModelSpaceBoundingBox();
 
@@ -65,6 +65,9 @@ public:
 	bool shootable = false;
 
 	bool moveToTopOfBox = true;
+
+	bool rigid = true;
+
 	~Mesh();
 private:
 	GLuint VAO, VBO, IBO;

@@ -175,21 +175,6 @@ bool Camera::boxCollision(const BoundingBox& box, GLfloat deltaTime, float& outG
 		outGroundLevel = box.max.y;
 	}
 
-	// Horizontal pushback logic remains
-	const float pushback = 0.05f;
-	if (delta.x > 0 && previousPosition.x + pushback <= box.min.x && position.x + pushback > box.min.x) {
-		position.x = previousPosition.x;
-	}
-	else if (delta.x < 0 && previousPosition.x - pushback >= box.max.x && position.x - pushback < box.max.x) {
-		position.x = previousPosition.x;
-	}
-	if (delta.z > 0 && previousPosition.z + pushback <= box.min.z && position.z + pushback > box.min.z) {
-		position.z = previousPosition.z;
-	}
-	else if (delta.z < 0 && previousPosition.z - pushback >= box.max.z && position.z - pushback < box.max.z) {
-		position.z = previousPosition.z;
-	}
-
 	return landed;
 }
 

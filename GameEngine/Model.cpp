@@ -20,6 +20,11 @@ void Model::LoadModel(const std::string fileName)
 	LoadMaterials(scene);
 
 	printf("Model loading complete. Mesh count: %zu\n", meshList.size());
+
+	for (auto& mesh : meshList) {
+		mesh->rigid = rigid;
+	}
+	
 }
 
 void Model::RenderModel(GLuint uniformModelLocation)
@@ -146,8 +151,11 @@ void Model::rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 void Model::scale(GLfloat x, GLfloat y, GLfloat z)
 {
 	model = glm::scale(model, glm::vec3(x, y, z));
-	for (auto& mesh : meshList)
+	for (auto& mesh : meshList) {
 		mesh->model = model;
+		//std::cout << "MESH: " << glm::to_string(mesh->model);
+	}
+	//std::cout << " MODEL: " << glm::to_string(model) << std::endl;
 }
 void Model::scaleUVs(float scale) {
 	for (auto& mesh : meshList) {
@@ -171,41 +179,52 @@ void Model::CalculateModelSpaceBoundingBox() {
 	if (meshList.empty())
 		return;
 
-	const auto& mesh = meshList[0];  // Process only the first mesh
-
-	const GLfloat* vertices = mesh->mVertices;
-	unsigned int numVertices = mesh->mNumOfVertices;
 	const unsigned int floatsPerVertex = 8;
 
-	if (!vertices || numVertices < floatsPerVertex || numVertices % floatsPerVertex != 0)
-		return;
+	bool initialized = false;
+	glm::vec3 overallMin, overallMax;
 
-	unsigned int vertexCount = numVertices / floatsPerVertex;
+	for (const auto& mesh : meshList) {
+		const GLfloat* vertices = mesh->mVertices;
+		unsigned int numVertices = mesh->mNumOfVertices;
 
-	glm::vec3 localMin(vertices[0], vertices[1], vertices[2]);
-	glm::vec3 localMax = localMin;
+		if (!vertices || numVertices < floatsPerVertex || numVertices % floatsPerVertex != 0)
+			continue;
 
-	for (unsigned int i = 1; i < vertexCount; ++i) {
-		unsigned int offset = i * floatsPerVertex;
-		glm::vec3 pos(vertices[offset], vertices[offset + 1], vertices[offset + 2]);
+		unsigned int vertexCount = numVertices / floatsPerVertex;
 
-		localMin = glm::min(localMin, pos);
-		localMax = glm::max(localMax, pos);
+		for (unsigned int i = 0; i < vertexCount; ++i) {
+			unsigned int offset = i * floatsPerVertex;
+			glm::vec3 pos(vertices[offset], vertices[offset + 1], vertices[offset + 2]);
+
+			if (!initialized) {
+				overallMin = pos;
+				overallMax = pos;
+				initialized = true;
+			}
+			else {
+				overallMin = glm::min(overallMin, pos);
+				overallMax = glm::max(overallMax, pos);
+			}
+		}
 	}
 
-	// Prepare 8 corners of the local bounding box
+	if (!initialized)
+		return; // No valid vertices
+
+	// Prepare 8 corners of the combined local bounding box
 	glm::vec3 corners[8] = {
-		{ localMin.x, localMin.y, localMin.z },
-		{ localMax.x, localMin.y, localMin.z },
-		{ localMin.x, localMax.y, localMin.z },
-		{ localMax.x, localMax.y, localMin.z },
-		{ localMin.x, localMin.y, localMax.z },
-		{ localMax.x, localMin.y, localMax.z },
-		{ localMin.x, localMax.y, localMax.z },
-		{ localMax.x, localMax.y, localMax.z }
+		{ overallMin.x, overallMin.y, overallMin.z },
+		{ overallMax.x, overallMin.y, overallMin.z },
+		{ overallMin.x, overallMax.y, overallMin.z },
+		{ overallMax.x, overallMax.y, overallMin.z },
+		{ overallMin.x, overallMin.y, overallMax.z },
+		{ overallMax.x, overallMin.y, overallMax.z },
+		{ overallMin.x, overallMax.y, overallMax.z },
+		{ overallMax.x, overallMax.y, overallMax.z }
 	};
 
-	// Apply the Model matrix to all corners
+	// Apply the model matrix to all corners
 	glm::vec3 transformedMin = glm::vec3(model * glm::vec4(corners[0], 1.0f));
 	glm::vec3 transformedMax = transformedMin;
 
@@ -215,9 +234,14 @@ void Model::CalculateModelSpaceBoundingBox() {
 		transformedMax = glm::max(transformedMax, transformed);
 	}
 
-	untransformedBox = BoundingBox{ localMin, localMax };
+	untransformedBox = BoundingBox{ overallMin, overallMax };
 	box = BoundingBox{ transformedMin, transformedMax };
+
+	for (auto& mesh : meshList) {
+		mesh->CalculateModelSpaceBoundingBox();
+	}
 }
+
 
 void Model::transformBoundingBox() {
 

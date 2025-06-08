@@ -1,7 +1,9 @@
-#pragma once
+#ifndef GAMEENGINE_TEXTURE_H
+#define GAMEENGINE_TEXTURE_H
+
+#include "stb_image.h"
 
 #include <string>
-#include "CommonValues.h"
 #include <GL/glew.h>
 
 class Texture {
@@ -24,3 +26,4 @@ private:
 	std::string fileLocation;
 };
 
+#endif // !GAMEENGINE_TEXTURE_H

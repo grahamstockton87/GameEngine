@@ -76,10 +76,15 @@ std::string Shader::ReadFile(const char* fileLocation)
 
 void Shader::CompileShader(const char* vertexCode, const char* fragmentCode)
 {
+	if (!vertexCode || !fragmentCode) {
+		printf("Null shader code passed to CompileShader!\n");
+		return;
+	}
+
+
 	shaderID = glCreateProgram();
 
-	if (!shaderID)
-	{
+	if (!shaderID) {
 		printf("Error creating shader program!\n");
 		return;
 	}
@@ -89,6 +94,7 @@ void Shader::CompileShader(const char* vertexCode, const char* fragmentCode)
 
 	CompileProgram();
 }
+
 
 void Shader::CompileShader(const char* vertexCode, const char* geometryCode, const char* fragmentCode)
 {
@@ -173,6 +179,26 @@ GLuint Shader::GetUniformSpriteTextureLocation()
 	return uniformSpriteTexture;
 }
 
+GLuint Shader::GetUniformCurrentFrameLocation()
+{
+	return uniformCurrentFrame;
+}
+
+GLuint Shader::GetUniformPreviousFrameLocation()
+{
+	return uniformPreviousFrame;
+}
+
+GLuint Shader::GetUniformMixFactorLocation()
+{
+	return uniformMixFactor;
+}
+
+GLuint Shader::GetUniformSceneTextureLocation()
+{
+	return uniformSceneTexture;
+}
+
 
 void Shader::SetDirectionalLight(DirectionalLight* dLight)
 {
@@ -236,6 +262,11 @@ void Shader::SetLightMatrices(std::vector<glm::mat4> lightMatrices)
 	}
 }
 
+void Shader::SetMixFactor(float value)
+{
+	glUniform1f(uniformMixFactor, value);
+}
+
 void Shader::UseShader()
 {
 	glUseProgram(shaderID);
@@ -281,21 +312,25 @@ void Shader::AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderT
 	glAttachShader(theProgram, theShader);
 }
 
-void Shader::CompileProgram()
-{
+void Shader::CompileProgram() {
 	GLint result = 0;
 	GLchar eLog[1024] = { 0 };
 
 	glLinkProgram(shaderID);
 	glGetProgramiv(shaderID, GL_LINK_STATUS, &result);
-	if (!result)
-	{
+	if (!result) {
 		glGetProgramInfoLog(shaderID, sizeof(eLog), NULL, eLog);
-		printf("Error linking program: '%s'\n", eLog);
+		std::cerr << "Error linking shader program: '" << eLog << "'" << std::endl;
 		return;
 	}
 
-
+	glValidateProgram(shaderID);
+	glGetProgramiv(shaderID, GL_VALIDATE_STATUS, &result);
+	if (!result) {
+		glGetProgramInfoLog(shaderID, sizeof(eLog), NULL, eLog);
+		std::cerr << "Error validating program: '" << eLog << "'" << std::endl;
+		return;
+	}
 
 	uniformProjection = glGetUniformLocation(shaderID, "projection");
 	uniformModel = glGetUniformLocation(shaderID, "model");
@@ -395,6 +430,11 @@ void Shader::CompileProgram()
 	uniformTextProjection = glGetUniformLocation(shaderID, "projection");
 
 	uniformSpriteTexture = glGetUniformLocation(shaderID, "spriteTexture");
+
+	uniformCurrentFrame = glGetUniformLocation(shaderID, "currentFrame");
+	uniformPreviousFrame = glGetUniformLocation(shaderID, "previousFrame");
+	uniformMixFactor = glGetUniformLocation(shaderID, "blendFactor");
+	uniformSceneTexture = glGetUniformLocation(shaderID, "sceneTexture");
 }
 
 Shader::~Shader()

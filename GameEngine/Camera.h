@@ -39,11 +39,13 @@ public:
 	const GLfloat gravity = -20.0f; // Or tweak to your scale
 	const GLfloat terminalVelocity = 50.0f;
 
-	const float radiusX = 0.2f;    // Half-width (side-to-side)
-	const float radiusZ = 0.2f;    // Half-depth (front-to-back)
+	const float radiusX = 0.5f;    // Half-width (side-to-side)
+	const float radiusZ = 0.5f;    // Half-depth (front-to-back)
 	const float radiusY = 1.0f;
 
 	BoundingBox GetBoundingBox();
+
+	glm::vec3 getFront() const { return front; }
 
 	~Camera();
 private:

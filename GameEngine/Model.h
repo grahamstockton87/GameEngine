@@ -13,14 +13,14 @@
 #include <gtc/type_ptr.hpp>
 #include <gtx/string_cast.hpp>
 #include "Material.h"
-
+#include "CollisionUtils.h"
 
 class Model {
 public:
 	Model();
 
 	// Prevent copy
-	Model(const Model&) = delete;
+	Model(const Model&) = default;
 	Model& operator=(const Model&) = delete;
 
 	// Allow move
@@ -31,7 +31,10 @@ public:
 	void RenderModel(GLuint uniformModel);
 	void RenderModel(GLuint uniformModelLocation, bool OverrideTexture);
 	void ClearModel();
+	void ResetModel();
 	void transformBoundingBox();
+
+	void SetRigid(bool rigidP);
 
 	void translate(GLfloat x, GLfloat y, GLfloat z);
 	void rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
@@ -40,13 +43,19 @@ public:
 
 	void CalculateModelSpaceBoundingBox();
 
-	std::vector<std::unique_ptr<Mesh>>&& GetMeshList() { return std::move(meshList); }
+	void CheckBoxCollisionModel(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime);
+	void CheckTriangleCollisionModel(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, Camera& camera);
+
+
+	std::vector<std::unique_ptr<Mesh>>& GetMeshList() { return meshList; }
+
 
 	BoundingBox GetBox() { return box; }
 
 	bool shootable = false;
 	bool IsValid = true;
 	bool rigid = true;
+	bool UsesBoxCollision = true;
 
 	glm::mat4 model = glm::mat4(1.0f);
 

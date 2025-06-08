@@ -1,4 +1,7 @@
-#pragma once
+#ifndef SKYBOX_H
+#define SKYBOX_H
+
+
 
 #include <vector>
 #include <string>
@@ -11,6 +14,7 @@
 #include "Mesh.h"
 #include "CommonValues.h"
 
+//#include "stbi_image_include.cpp"
 
 class Skybox {
 public:
@@ -28,3 +32,4 @@ private:
 	GLuint uniformProjection, uniformView;
 };
 
+#endif // !SKYBOX_H

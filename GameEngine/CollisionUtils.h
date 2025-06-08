@@ -1,6 +1,5 @@
-#ifndef COLLISION_H
-#define COLLISION_H
-
+#ifndef COLLISIONUTILS_H
+#define COLLISIONUTILS_H
 
 #include "Mesh.h"
 #include "Triangle.h"
@@ -11,7 +10,7 @@
 #include <iostream>
 
 
-std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
+inline std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
 	std::vector<Triangle> triangles;
 
 	if (!mesh || mesh->mNumOfVertices == 0 || mesh->mNumOfIndices == 0 || !mesh->mVertices || !mesh->mIndices)
@@ -57,7 +56,7 @@ std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh
 }
 
 
-bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
+inline bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
 	const glm::vec3& rayDir,
 	const glm::vec3& v0,
 	const glm::vec3& v1,
@@ -94,7 +93,7 @@ bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
 
 	return false;
 }
-bool RayIntersectsAABB(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const BoundingBox& box, float maxDistance) {
+inline bool RayIntersectsAABB(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const BoundingBox& box, float maxDistance) {
 	float tMin = -INFINITY, tMax = INFINITY;
 
 	// X axis
@@ -133,7 +132,7 @@ bool RayIntersectsAABB(const glm::vec3& rayOrigin, const glm::vec3& rayDir, cons
 	return tMax >= std::max(tMin, 0.0f) && tMin <= maxDistance;
 
 }
-bool PointInTriangle2D(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b, const glm::vec2& c)
+inline bool PointInTriangle2D(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b, const glm::vec2& c)
 {
 	float d1 = (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y);
 	float d2 = (p.x - c.x) * (b.y - c.y) - (b.x - c.x) * (p.y - c.y);
@@ -142,126 +141,147 @@ bool PointInTriangle2D(const glm::vec2& p, const glm::vec2& a, const glm::vec2& 
 	bool has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 	return !(has_neg && has_pos);
 }
-bool AABBIntersectsTriangle(const BoundingBox& aabb, const Triangle& tri)
+inline bool AABBIntersectsTriangle(const BoundingBox& aabb, const Triangle& tri)
 {
 	glm::vec3 boxCenter = (aabb.min + aabb.max) * 0.5f;
 	glm::vec3 boxHalfSize = (aabb.max - aabb.min) * 0.5f;
 
-	// 1. Plane test
-	glm::vec3 normal = glm::normalize(glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0));
-	float planeD = -glm::dot(normal, tri.v0);
-	float s = glm::dot(normal, boxCenter) + planeD;
+	// Triangle vertices relative to box center
+	glm::vec3 v0 = tri.v0 - boxCenter;
+	glm::vec3 v1 = tri.v1 - boxCenter;
+	glm::vec3 v2 = tri.v2 - boxCenter;
 
-	float r = boxHalfSize.x * std::abs(normal.x) + boxHalfSize.y * std::abs(normal.y) + boxHalfSize.z * std::abs(normal.z);
-	if (std::abs(s) > r) return false;
+	// Triangle edges
+	glm::vec3 f0 = v1 - v0;
+	glm::vec3 f1 = v2 - v1;
+	glm::vec3 f2 = v0 - v2;
 
-	// 2. Project triangle and box onto 2D plane
-	int axis = 0;
-	if (std::abs(normal.y) > std::abs(normal.x)) axis = 1;
-	if (std::abs(normal.z) > std::abs(normal[axis])) axis = 2;
-
-	auto project = [axis](const glm::vec3& v) -> glm::vec2 {
-		switch (axis) {
-		case 0: return glm::vec2(v.y, v.z); // YZ
-		case 1: return glm::vec2(v.x, v.z); // XZ
-		case 2: return glm::vec2(v.x, v.y); // XY
-		default: return glm::vec2(0);
-		}
-		};
-
-	glm::vec2 tri2D[3] = { project(tri.v0), project(tri.v1), project(tri.v2) };
-	glm::vec2 boxMin2D = project(aabb.min);
-	glm::vec2 boxMax2D = project(aabb.max);
-
-	glm::vec2 boxCorners[4] = {
-		{ boxMin2D.x, boxMin2D.y },
-		{ boxMax2D.x, boxMin2D.y },
-		{ boxMax2D.x, boxMax2D.y },
-		{ boxMin2D.x, boxMax2D.y }
+	// Box axes
+	glm::vec3 axes[3] = {
+		glm::vec3(1, 0, 0),
+		glm::vec3(0, 1, 0),
+		glm::vec3(0, 0, 1)
 	};
 
-	// 3. If any box corner is in the triangle
-	for (int i = 0; i < 4; ++i) {
-		if (PointInTriangle2D(boxCorners[i], tri2D[0], tri2D[1], tri2D[2])) {
-			return true;
-		}
-	}
-
-	// 4. If any triangle point is inside the box 2D
+	// 1. Test 9 cross products of triangle edges and box axes
 	for (int i = 0; i < 3; ++i) {
-		if (tri2D[i].x >= boxMin2D.x && tri2D[i].x <= boxMax2D.x &&
-			tri2D[i].y >= boxMin2D.y && tri2D[i].y <= boxMax2D.y) {
-			return true;
+		glm::vec3 edge = (i == 0) ? f0 : (i == 1) ? f1 : f2;
+
+		for (int j = 0; j < 3; ++j) {
+			glm::vec3 axis = glm::cross(edge, axes[j]);
+			if (glm::length(axis) < 1e-6f) continue; // Skip near-zero axes
+
+			float minTri = std::min({ glm::dot(v0, axis), glm::dot(v1, axis), glm::dot(v2, axis) });
+			float maxTri = std::max({ glm::dot(v0, axis), glm::dot(v1, axis), glm::dot(v2, axis) });
+
+			float r = boxHalfSize.x * std::abs(glm::dot(axes[0], axis)) +
+				boxHalfSize.y * std::abs(glm::dot(axes[1], axis)) +
+				boxHalfSize.z * std::abs(glm::dot(axes[2], axis));
+
+			if (minTri > r || maxTri < -r)
+				return false;
 		}
 	}
 
-	return false;
+	// 2. Test overlap on box normals (x/y/z)
+	for (int i = 0; i < 3; ++i) {
+		float minTri = std::min({ v0[i], v1[i], v2[i] });
+		float maxTri = std::max({ v0[i], v1[i], v2[i] });
+
+		if (minTri > boxHalfSize[i] || maxTri < -boxHalfSize[i])
+			return false;
+	}
+
+	// 3. Test triangle normal
+	glm::vec3 triNormal = glm::normalize(glm::cross(f0, f1));
+	float triOffset = glm::dot(triNormal, v0);
+
+	float r = boxHalfSize.x * std::abs(triNormal.x) +
+		boxHalfSize.y * std::abs(triNormal.y) +
+		boxHalfSize.z * std::abs(triNormal.z);
+
+	if (std::abs(triOffset) > r)
+		return false;
+
+	return true;
+
 }
 
-void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, const std::unique_ptr<Mesh>& mesh, Camera& camera)
+inline void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, const std::unique_ptr<Mesh>& mesh, Camera& camera)
 {
 	if (!mesh || !mesh->IsValid) return;
 
-	BoundingBox playerBox = camera.GetBoundingBox();
-
+	// if the mesh is moving than we need to update the triangle list everytime every frame
 	mesh->UpdateTriangleList();
 
-	float highestHitY = -FLT_MAX;
-	bool foundValidGround = false;
+	glm::vec3 position = camera.getCameraPostion();
+	BoundingBox playerBox = camera.GetBoundingBox();
+
+	float groundHitY = -FLT_MAX;
+	float ceilingHitY = FLT_MAX;
+	bool foundGround = false;
+	bool foundCeiling = false;
 
 	for (const Triangle& tri : mesh->triangleList)
 	{
-		// Ground check
+		// --- Ground check ---
 		float hitY;
-		if (RayIntersectsTriangle(camera.getCameraPostion(), glm::vec3(0, -1, 0), tri.v0, tri.v1, tri.v2, hitY))
-		{
-			if (hitY > highestHitY)
-			{
-				highestHitY = hitY;
-				foundValidGround = true;
-				//::cout << "Hit ground triangle at Y: " << hitY << std::endl;
+		if (RayIntersectsTriangle(position, glm::vec3(0, -1, 0), tri.v0, tri.v1, tri.v2, hitY)) {
+			if (hitY > groundHitY) {
+				groundHitY = hitY;
+				foundGround = true;
+				//std::cout << "Floor hit";
 			}
 		}
 
-		// Wall check
-		glm::vec3 edge1 = tri.v1 - tri.v0;
-		glm::vec3 edge2 = tri.v2 - tri.v0;
-		glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+		// --- Ceiling check ---
+		if (RayIntersectsTriangle(position, glm::vec3(0, 1, 0), tri.v0, tri.v1, tri.v2, hitY)) {
+			if (hitY < ceilingHitY) {
+				ceilingHitY = hitY;
+				foundCeiling = true;
+				//std::cout << "Top hit";
+			}
+		}
 
-		const float wallThreshold = 0.6f; // less than 1.0 means it's not upright
+		// --- Wall check ---
+		glm::vec3 normal = glm::normalize(glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0));
+		glm::vec3 playerMove = camera.position - camera.previousPosition;
+
+		// If the normal is pointing into the player, flip it
+		if (glm::dot(playerMove, normal) > 0.0f) {
+			normal = -normal;
+		}
+
+
+		const float wallThreshold = 0.6f;
 		if (std::abs(normal.y) < wallThreshold) {
 			if (AABBIntersectsTriangle(playerBox, tri)) {
-				//std::cout << "Hit wall triangle with normal: " << glm::to_string(normal) << std::endl;
+				glm::vec3 moveDelta = camera.position - camera.previousPosition;
+
+				// Flip the normal if it's facing the same direction as motion
+				if (glm::dot(normal, moveDelta) > 0.0f) {
+					normal = -normal;
+				}
+
 				hitSide = true;
-				hit = true;
 				wallNormal = normal;
 			}
 		}
-		// Top collision check
-		float topHitY;
-		glm::vec3 rayOrigin = camera.getCameraPostion() + glm::vec3(0, camera.radiusY, 0);
-		if (RayIntersectsTriangle(rayOrigin, glm::vec3(0, 1, 0), tri.v0, tri.v1, tri.v2, topHitY))
-		{
-			hitTop = true;
-			hit = true;
-			foundValidGround = true;
-			break; // Exit early if we hit the top of a triangle
-		}
+
 	}
 
-	if (!hitTop) {
-		hitTop = true;
+	if (foundGround && groundHitY > closestY) {
+		closestY = groundHitY;
+		hit = true;
 	}
-
-	if (foundValidGround && highestHitY > closestY)
-	{
-		closestY = highestHitY;
+	if (foundCeiling) {
 		hit = true;
 	}
 }
 
+
 // Box Collision for box aready determined
-void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const BoundingBox& box, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime) {
+inline void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const BoundingBox& box, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime) {
 
 	if (camera.boxCollision(box, deltaTime, groundY)) {
 		if (moveToTopOfBox)
@@ -299,39 +319,10 @@ void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float groundY,
 	}
 }
 // Projects the movement vector onto a plane defined by the wall normal
-glm::vec3 ProjectMovementOntoWall(const glm::vec3& moveDelta, const glm::vec3& wallNormal) {
+inline glm::vec3 ProjectMovementOntoWall(const glm::vec3& moveDelta, const glm::vec3& wallNormal) {
 	return moveDelta - glm::dot(moveDelta, wallNormal) * wallNormal;
 }
 
-void GroundPlayer(bool hit, bool hitSide, glm::vec3 wallNormal, bool anyGrounded, float closestY, Camera& camera) {
-	constexpr float groundSnapOffset = 0.01f;
-	constexpr float maxGroundLevel = 0.0f;
 
-	// Handle ground collision
-	if (hit) {
-		float feet = camera.position.y - camera.radiusY;
-		float distanceToGround = feet - closestY;
-
-		if (distanceToGround < 0.1f) {
-			camera.isGrounded = true;
-			camera.groundLevel = closestY;
-			camera.position.y = closestY + camera.radiusY + groundSnapOffset;
-			camera.verticalVelocity = 0.0f;
-			return;
-		}
-	}
-
-	// Fallback: use anyGrounded flag if no direct ground hit
-	if (anyGrounded) {
-		camera.isGrounded = true;
-		camera.groundLevel = maxGroundLevel;
-		camera.position.y = camera.groundLevel + camera.radiusY;
-		camera.verticalVelocity = 0.0f;
-	}
-	else {
-		camera.isGrounded = false;
-		camera.groundLevel = 0.0f;
-	}
-}
 
 #endif // !COLLISION_H

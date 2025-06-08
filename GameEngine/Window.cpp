@@ -1,5 +1,6 @@
-#include "Window.h"
+﻿#include "Window.h"
 #include <iostream>
+#include <vector>
 
 
 Window::Window() {
@@ -38,14 +39,15 @@ int Window::Initialize() {
 	// setup window properties
 	//opengl version
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	// CORE PROFILE = no backwards compatability
+	// no backwards compatibility
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 	// allow forward compatibility
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	glfwWindowHint(GLFW_SAMPLES, 4);
+	//glfwWindowHint(GLFW_SAMPLES, 4);
 
 
 	mainWindow = glfwCreateWindow(width, height, "Test Window", NULL, NULL);
@@ -90,6 +92,34 @@ int Window::Initialize() {
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
 	glfwSetWindowUserPointer(mainWindow, this);
+
+	for (int i = 0; i < 2; ++i) {
+		// Create FBO
+		glGenFramebuffers(1, &motionBlurFBO[i]);
+		glBindFramebuffer(GL_FRAMEBUFFER, motionBlurFBO[i]);
+
+		// Create color texture attachment
+		glGenTextures(1, &motionBlurTex[i]);
+		glBindTexture(GL_TEXTURE_2D, motionBlurTex[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, motionBlurTex[i], 0);
+
+	
+		glGenRenderbuffers(1, &motionBlurRBO[i]);
+		glBindRenderbuffer(GL_RENDERBUFFER, motionBlurRBO[i]);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, motionBlurRBO[i]);
+
+		// Optional: check framebuffer completeness
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			std::cerr << "Motion blur FBO " << i << " is not complete!\n";
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind
+	}
+
 
 	return 0;
 }
@@ -184,4 +214,96 @@ void Window::createCallbacks()
 	glfwSetCursorPosCallback(mainWindow, handleMouse);
 	glfwSetScrollCallback(mainWindow, handleScroll);
 	glfwSetMouseButtonCallback(mainWindow, handleMouseButtons);
+}
+void Window::InitMotionBlurFBO(int width, int height) {
+	// Create 2 ping-pong FBOs + textures + RBOs
+	glGenFramebuffers(2, motionBlurFBO);
+	glGenTextures(2, motionBlurTex);
+	glGenRenderbuffers(2, motionBlurRBO);
+
+	for (int i = 0; i < 2; i++) {
+		// 1) Color texture
+		glBindTexture(GL_TEXTURE_2D, motionBlurTex[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		// 2) Framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, motionBlurFBO[i]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER,
+			GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_2D,
+			motionBlurTex[i], 0);
+
+		// Make sure we write to COLOR_ATTACHMENT0
+		GLenum bufs[1] = { GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, bufs);
+
+		// 3) Depth+Stencil renderbuffer
+		glBindRenderbuffer(GL_RENDERBUFFER, motionBlurRBO[i]);
+		glRenderbufferStorage(GL_RENDERBUFFER,
+			GL_DEPTH24_STENCIL8,
+			width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+			GL_DEPTH_STENCIL_ATTACHMENT,
+			GL_RENDERBUFFER,
+			motionBlurRBO[i]);
+
+		// 4) Check completeness
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER)
+			!= GL_FRAMEBUFFER_COMPLETE)
+		{
+			std::cerr << "Motion blur FBO[" << i << "] incomplete!\n";
+		}
+	}
+
+	// 5) Unbind
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	// 6) “Previous frame” texture (standalone)
+	glGenTextures(1, &motionBlurPrevTex);
+	glBindTexture(GL_TEXTURE_2D, motionBlurPrevTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	// 7) Scene-color copy texture
+	glGenTextures(1, &sceneColorTex);
+	glBindTexture(GL_TEXTURE_2D, sceneColorTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, motionBlurFBO[1]);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
+
+GLuint Window::GetMotionBlurFBO(int index) const {
+	if (index < 0 || index > 1) {
+		std::cerr << "[Window] Invalid FBO index: " << index << std::endl;
+		return 0;
+	}
+	return motionBlurFBO[index];
+}
+GLuint Window::GetMotionBlurTexture(int index) const {
+	if (index < 0 || index > 1) {
+		std::cerr << "[Window] Invalid texture index: " << index << std::endl;
+		return 0;
+	}
+	return motionBlurTex[index];
 }

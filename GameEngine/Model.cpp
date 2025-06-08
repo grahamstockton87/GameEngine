@@ -61,6 +61,11 @@ void Model::ClearModel()
 	}
 }
 
+void Model::ResetModel()
+{
+	model = glm::mat4(1.0f);
+}
+
 Model::~Model()
 {
 	ClearModel();
@@ -151,10 +156,8 @@ void Model::rotate(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 void Model::scale(GLfloat x, GLfloat y, GLfloat z)
 {
 	model = glm::scale(model, glm::vec3(x, y, z));
-	for (auto& mesh : meshList) {
+	for (auto& mesh : meshList)
 		mesh->model = model;
-		//std::cout << "MESH: " << glm::to_string(mesh->model);
-	}
 	//std::cout << " MODEL: " << glm::to_string(model) << std::endl;
 }
 void Model::scaleUVs(float scale) {
@@ -242,6 +245,20 @@ void Model::CalculateModelSpaceBoundingBox() {
 	}
 }
 
+void Model::CheckBoxCollisionModel(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime)
+{
+	for (auto& mesh : meshList) {
+		CheckBoxCollision(hit, hitSide, closestY, groundY, delta, mesh->getBoundingBox(), moveToTopOfBox, camera, deltaTime);
+	}
+}
+
+void Model::CheckTriangleCollisionModel(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, Camera& camera)
+{
+	for (auto& mesh : meshList) {
+		CheckTriangleCollision(closestY, hit, hitSide, hitTop, wallNormal, mesh, camera);
+	}
+}
+
 
 void Model::transformBoundingBox() {
 
@@ -270,6 +287,14 @@ void Model::transformBoundingBox() {
 	}
 
 	box = BoundingBox{ transformedMin, transformedMax };
+}
+
+void Model::SetRigid(bool rigidP)
+{
+	for (auto& mesh : meshList) {
+		mesh->rigid = rigidP;
+	}
+	rigid = rigidP;
 }
 
 

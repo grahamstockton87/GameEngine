@@ -1,13 +1,14 @@
 #ifndef COMMONVALUES_H
 #define COMMONVALUES_H
 
+
+
 #include <stdio.h>
-#include "stb_image.h"
+
 #include "BoundingBox.h"
 #include "Triangle.h"
 #include "Mesh.h"
 #include "Camera.h"
-
 
 #include <glm.hpp>
 #include <iostream>

@@ -27,6 +27,17 @@ public:
 
 	void swapBuffers() { glfwSwapBuffers(mainWindow); }
 
+	void InitMotionBlurFBO(int width, int height);
+	GLuint GetMotionBlurFBO(int index) const;
+	GLuint GetMotionBlurTexture(int index) const;
+
+	GLuint motionBlurPrevTex;
+	GLuint sceneColorTex;
+	GLuint motionBlurFBO[2];
+	GLuint motionBlurTex[2];
+	GLuint motionBlurRBO[2];
+
+    GLFWwindow* getWindow() { return mainWindow; }
 	~Window();
 private:
 	GLFWwindow* mainWindow;
@@ -54,5 +65,7 @@ private:
 	static void handleMouseButtons(GLFWwindow* window, int button, int action, int mods);
 	
 	void createCallbacks();
-};
 
+
+
+};

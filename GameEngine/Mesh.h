@@ -32,7 +32,7 @@ public:
 	unsigned int mNumOfIndices = 0;
 
 	std::vector<Triangle> triangleList;
-	void UpdateTriangleList() { triangleList = ExtractTrianglesFromMesh(); }
+	void UpdateTriangleList() { triangleList.clear(); triangleList = ExtractTrianglesFromMesh(); }
 
 	void CalculateModelSpaceBoundingBox();
 
@@ -55,11 +55,13 @@ public:
 
 	glm::mat4 GetModel() { return model; }
 	void SetModel(glm::mat4 modelIn) { model = modelIn; }
+
 	glm::mat4 model;
 
 	std::string ID = "null";
 
-	void ModelReset();
+	void ResetModel();
+
 	bool IsValid = true;
 
 	bool shootable = false;

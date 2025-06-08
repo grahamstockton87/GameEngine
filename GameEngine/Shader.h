@@ -44,6 +44,13 @@ public:
 	GLuint GetTextColorLocation();
 	GLuint GetTextProjectionLocation();
 	GLuint GetUniformSpriteTextureLocation();
+	GLuint GetUniformCurrentFrameLocation();
+	GLuint GetUniformPreviousFrameLocation();
+	GLuint GetUniformMixFactorLocation();
+	GLuint GetUniformSceneTextureLocation();
+
+
+	GLuint GetShaderID() { return shaderID; }
 
 	void SetDirectionalLight(DirectionalLight* dLight);
 	void SetPointLights(PointLight* pLight, unsigned int lightCount, unsigned int textureUnit, unsigned int offset);
@@ -52,6 +59,8 @@ public:
 	void SetDirectionalShadowMap(GLuint textureUnit);
 	void SetDirectionalLightTransform(glm::mat4* Itransform);
 	void SetLightMatrices(std::vector<glm::mat4> lightMatrices);
+	void SetMixFactor(float value);
+
 
 	void UseShader();
 	void ClearShader();
@@ -68,7 +77,8 @@ private:
 		uniformDirectionalLightTransform, uniformDirectionalShadowMap,
 		uniformOmniLightPos, uniformFarPlane,
 		uniformTextColor, uniformTextProjection,
-		uniformSpriteTexture;
+		uniformSpriteTexture,
+		uniformCurrentFrame, uniformPreviousFrame, uniformMixFactor, uniformSceneTexture;
 	GLuint uniformLightMatrices[6];
 
 	struct {

@@ -8,13 +8,11 @@
 #ifdef _MSC_VER
 #pragma warning (push, 0)
 #endif
-
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdlib>
 #include <iostream>
 
-#define STBI_MSC_SECURE_CRT
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "stb_include.cpp"
 
 class rtw_image {
 public:

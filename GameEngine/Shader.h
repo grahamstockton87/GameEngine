@@ -48,6 +48,8 @@ public:
 	GLuint GetUniformPreviousFrameLocation();
 	GLuint GetUniformMixFactorLocation();
 	GLuint GetUniformSceneTextureLocation();
+	GLuint GetUniformSceneColorLocation();
+	GLuint GetIUniformSceneDetaLocation();
 
 
 	GLuint GetShaderID() { return shaderID; }
@@ -78,7 +80,8 @@ private:
 		uniformOmniLightPos, uniformFarPlane,
 		uniformTextColor, uniformTextProjection,
 		uniformSpriteTexture,
-		uniformCurrentFrame, uniformPreviousFrame, uniformMixFactor, uniformSceneTexture;
+		uniformCurrentFrame, uniformPreviousFrame, uniformMixFactor, uniformSceneTexture,
+		uniformSceneColor, uniformSceneDepth;
 	GLuint uniformLightMatrices[6];
 
 	struct {

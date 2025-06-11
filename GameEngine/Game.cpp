@@ -44,6 +44,7 @@ bool Game::Initialize() {
 	dog = std::make_unique<Model>();
 	dog->LoadModel("Models/dog.obj");
 	dog->rigid = false;
+	dog->UsesBoxCollision = true;
 	modelList.push_back(std::move(dog));
 
 	land = std::make_unique<Model>();
@@ -333,9 +334,13 @@ void Game::Run() {
 		dogHit = false;
 		wallNormal = glm::vec3(0.0f);
 		delta = camera.position - camera.previousPosition;
+		hit = false;
+		hitSide = false;
+		hitTop = false;
+
 		Update();
-		CheckCollision();
 		ProcessInput();
+		CheckCollision();
 		GroundPlayer();
 		Shoot();
 		camera.updatePhysics(deltaTime);
@@ -378,7 +383,7 @@ void Game::Run() {
 			: mainWindow.GetMotionBlurTexture(1),
 			"previousFrame",
 			// blend 90% new + 10% old
-			0.9f
+			0.5f
 		);
 
 		// ----- 5) Blit accumulated result to screen -----
@@ -408,20 +413,50 @@ void Game::Run() {
 
 		healthBar.CreateSprite();
 		healthHUD.Render(hudShader, orthoProj);
+
 		rayRenderer.Render(perspProj, camera.calculateViewMatrix(), RayShader);
 
 		// ----- 7) Finish frame -----
 		glUseProgram(0);
 		mainWindow.swapBuffers();
+		if (firstFrame) {
+			directionalShadowShader.Validate();
+			for (auto& mesh : meshList) {
+				if (mesh->UsesBoxCollision)
+					mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+				else
+					mesh->UpdateTriangleList(); // Update triangle list for collision
+			}
+			for (auto& model : modelList) {
+
+				if (model->UsesBoxCollision)
+					model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+				else
+					model->UpdateTriangleList(); // Update triangle list for collision
+			}
+		}
+		else {
+			// Update Bounding Boxes or Triangles
+			for (auto& mesh : meshList) {
+				if (!mesh->rigid) {
+					if (mesh->UsesBoxCollision)
+						mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+					else
+						mesh->UpdateTriangleList();
+				}
+			}
+			for (auto& model : modelList) {
+				if (!model->rigid) {
+					if (model->UsesBoxCollision)
+						model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+					else
+						model->UpdateTriangleList();
+				}
+			}
+		}
 		firstFrame = false;
 	}
 }
-
-
-
-
-
-
 
 
 //if (debugDisplayMode == 0) {
@@ -481,17 +516,7 @@ void Game::Update() {
 	for (size_t i = 0; i < spotLightCount; i++) {
 		OmniShadowMapPass(&spotLights[i]);
 	}
-	// Update Bounding Boxes or Triangles
-	for (auto& mesh : meshList) {
-		if (!mesh->rigid || firstFrame) {
-			mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-		}
-	}
-	for (auto& model : modelList) {
-		if (!model->rigid || firstFrame) {
-			model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-		}
-	}
+	
 }
 void Game::ProcessInput()
 {
@@ -609,6 +634,9 @@ void Game::CreateShaders() {
 
 	finalBlitShader = Shader();
 	finalBlitShader.CreateFromFiles("Shaders/fullScreen_vert.glsl", "Shaders/fullScreen_frag.glsl");
+
+	depthOfFieldShader = Shader();
+	depthOfFieldShader.CreateFromFiles("Shaders/depth_field_vert.glsl", "Shaders/depth_field_frag.glsl");
 }
 void Game::DirectionalShadowPass(DirectionalLight* light) {
 	directionalShadowShader.UseShader();
@@ -622,7 +650,7 @@ void Game::DirectionalShadowPass(DirectionalLight* light) {
 	glm::mat4 lightTransform = light->CalculateLightTransform();
 	directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
 
-	directionalShadowShader.Validate();
+	//directionalShadowShader.Validate();
 
 	RenderScene();
 
@@ -830,18 +858,18 @@ void Game::CheckCollision() {
 			health -= 10.0f * deltaTime;
 		}
 	}
-
+	// skip dog first model in list
 	for (size_t i = 1; i < modelList.size(); ++i) {
 		const auto& model = modelList[i];
-
-		if (model->IsValid && model->UsesBoxCollision) {
-			model->CheckBoxCollisionModel(hit, hitSide, closestY, groundY, delta, true, camera, deltaTime);
-		}
-		else {
-			model->CheckTriangleCollisionModel(closestY, hit, hitSide, hitTop, wallNormal, camera);
+		if (model->IsValid) {
+			if (model->UsesBoxCollision) {
+				model->CheckBoxCollisionModel(hit, hitSide, closestY, groundY, delta, true, camera, deltaTime);
+			}
+			else {
+				model->CheckTriangleCollisionModel(closestY, hit, hitSide, hitTop, wallNormal, camera);
+			}
 		}
 	}
-
 }
 void Game::GroundPlayer() {
 	constexpr float groundSnapOffset = 0.01f;
@@ -872,10 +900,26 @@ void Game::GroundPlayer() {
 		camera.isGrounded = false;
 		camera.groundLevel = 0.0f;
 	}
-	// Handle side collision and wall sliding
-	if (hitSide && glm::length(wallNormal) > 0.0f) {
+	if (hitSide) {
+		//std::cout << "Hit side wall!";
+		// 1) how far you tried to move
 		glm::vec3 moveDelta = camera.position - camera.previousPosition;
-		glm::vec3 slideVector = ProjectMovementOntoWall(moveDelta, wallNormal);
-		camera.position = camera.previousPosition + slideVector;
+
+		// 2) rewind to last good spot
+		camera.position = camera.previousPosition;
+
+		// 3) pure plane‐projection (no epsilon)
+		float d = glm::dot(moveDelta, wallNormal);
+		glm::vec3 slideDelta = moveDelta - wallNormal * d;
+
+		// 4) apply tangential movement
+		camera.position += slideDelta;
 	}
+
+
+
+
+
+
+
 }

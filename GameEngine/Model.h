@@ -45,6 +45,7 @@ public:
 
 	void CheckBoxCollisionModel(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime);
 	void CheckTriangleCollisionModel(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, Camera& camera);
+	void UpdateTriangleList();
 
 
 	std::vector<std::unique_ptr<Mesh>>& GetMeshList() { return meshList; }

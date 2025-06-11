@@ -1,4 +1,4 @@
-#include "Model.h"
+﻿#include "Model.h"
 
 Model::Model(){}
 
@@ -179,71 +179,64 @@ void Model::scaleUVs(float scale) {
 }
 
 void Model::CalculateModelSpaceBoundingBox() {
-	if (meshList.empty())
-		return;
+	if (meshList.empty()) return;
 
 	const unsigned int floatsPerVertex = 8;
-
-	bool initialized = false;
-	glm::vec3 overallMin, overallMax;
+	glm::vec3 overallMin(FLT_MAX);
+	glm::vec3 overallMax(-FLT_MAX);
+	bool sawAnyVertex = false;
 
 	for (const auto& mesh : meshList) {
-		const GLfloat* vertices = mesh->mVertices;
-		unsigned int numVertices = mesh->mNumOfVertices;
+		const GLfloat* v = mesh->mVertices;
+		unsigned int numFloats = mesh->mNumOfVertices;
+		if (!v || numFloats < floatsPerVertex) continue;
 
-		if (!vertices || numVertices < floatsPerVertex || numVertices % floatsPerVertex != 0)
-			continue;
+		unsigned int vertexCount = numFloats / floatsPerVertex;
+		sawAnyVertex = sawAnyVertex || (vertexCount > 0);
 
-		unsigned int vertexCount = numVertices / floatsPerVertex;
+		// pointer‐based loop: very little overhead per iteration
+		const float* p = v;
+		for (unsigned int i = 0; i < vertexCount; ++i, p += floatsPerVertex) {
+			// only read the XYZ components
+			glm::vec3 pos(p[0], p[1], p[2]);
 
-		for (unsigned int i = 0; i < vertexCount; ++i) {
-			unsigned int offset = i * floatsPerVertex;
-			glm::vec3 pos(vertices[offset], vertices[offset + 1], vertices[offset + 2]);
-
-			if (!initialized) {
-				overallMin = pos;
-				overallMax = pos;
-				initialized = true;
-			}
-			else {
-				overallMin = glm::min(overallMin, pos);
-				overallMax = glm::max(overallMax, pos);
-			}
+			// branchless min/max
+			overallMin = glm::min(overallMin, pos);
+			overallMax = glm::max(overallMax, pos);
 		}
 	}
 
-	if (!initialized)
-		return; // No valid vertices
+	if (!sawAnyVertex) return;  // nothing valid to bound
 
-	// Prepare 8 corners of the combined local bounding box
-	glm::vec3 corners[8] = {
-		{ overallMin.x, overallMin.y, overallMin.z },
-		{ overallMax.x, overallMin.y, overallMin.z },
-		{ overallMin.x, overallMax.y, overallMin.z },
-		{ overallMax.x, overallMax.y, overallMin.z },
-		{ overallMin.x, overallMin.y, overallMax.z },
-		{ overallMax.x, overallMin.y, overallMax.z },
-		{ overallMin.x, overallMax.y, overallMax.z },
-		{ overallMax.x, overallMax.y, overallMax.z }
-	};
-
-	// Apply the model matrix to all corners
-	glm::vec3 transformedMin = glm::vec3(model * glm::vec4(corners[0], 1.0f));
-	glm::vec3 transformedMax = transformedMin;
-
-	for (int i = 1; i < 8; ++i) {
-		glm::vec3 transformed = glm::vec3(model * glm::vec4(corners[i], 1.0f));
-		transformedMin = glm::min(transformedMin, transformed);
-		transformedMax = glm::max(transformedMax, transformed);
-	}
-
+	// store the untransformed box
 	untransformedBox = BoundingBox{ overallMin, overallMax };
-	box = BoundingBox{ transformedMin, transformedMax };
 
-	for (auto& mesh : meshList) {
-		mesh->CalculateModelSpaceBoundingBox();
-	}
+	// —— Now compute the world‐space AABB by transforming the center & extents ——
+	// 1) compute model‐space center & half‐extents
+	glm::vec3 center = (overallMin + overallMax) * 0.5f;
+	glm::vec3 extents = (overallMax - overallMin) * 0.5f;
+
+	// 2) transform the center (one 4×4 multiply)
+	glm::vec3 worldCenter = glm::vec3(model * glm::vec4(center, 1.0f));
+
+	// 3) extract the linear (3×3) part of the model matrix
+	glm::mat3 linearMat(model);
+
+	// 4) form the absolute‐value matrix
+	glm::mat3 absMat(
+		std::abs(linearMat[0][0]), std::abs(linearMat[0][1]), std::abs(linearMat[0][2]),
+		std::abs(linearMat[1][0]), std::abs(linearMat[1][1]), std::abs(linearMat[1][2]),
+		std::abs(linearMat[2][0]), std::abs(linearMat[2][1]), std::abs(linearMat[2][2])
+	);
+
+	// 5) compute the world‐space half‐extents
+	glm::vec3 worldExtents = absMat * extents;
+
+	// 6) assemble the final AABB
+	box.min = worldCenter - worldExtents;
+	box.max = worldCenter + worldExtents;
 }
+
 
 void Model::CheckBoxCollisionModel(bool& hit, bool& hitSide, float& closestY, float groundY, glm::vec3 delta, const bool moveToTopOfBox, Camera& camera, GLfloat deltaTime)
 {
@@ -296,5 +289,9 @@ void Model::SetRigid(bool rigidP)
 	}
 	rigid = rigidP;
 }
-
+void Model::UpdateTriangleList() {
+	for (auto& mesh : meshList) {
+		mesh->UpdateTriangleList();
+	}
+}
 

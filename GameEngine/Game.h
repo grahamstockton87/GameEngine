@@ -104,6 +104,7 @@ private:
 	Shader debugBox;
 	Shader textShader;
 	Shader hudShader;
+	Shader depthOfFieldShader;
 
 	Texture brickTexture;
 	Texture transparent;

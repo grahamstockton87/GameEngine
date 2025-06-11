@@ -54,7 +54,11 @@ public:
         if (!texture) return;
 
         shader.UseShader();
-        glUniformMatrix4fv(shader.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(orthoProj));
+        glUniformMatrix4fv(
+            shader.GetProjectionLocation(),
+            1, GL_FALSE,
+            glm::value_ptr(orthoProj)
+        );
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -65,11 +69,14 @@ public:
         glUniform1i(shader.GetUniformSpriteTextureLocation(), 0);
 
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         glBindVertexArray(0);
 
+        // restore GL state
         glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
     }
+
 
     void Cleanup() {
         if (VBO) glDeleteBuffers(1, &VBO);

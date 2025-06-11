@@ -199,6 +199,16 @@ GLuint Shader::GetUniformSceneTextureLocation()
 	return uniformSceneTexture;
 }
 
+GLuint Shader::GetUniformSceneColorLocation()
+{
+	return uniformSceneColor;
+}
+
+GLuint Shader::GetIUniformSceneDetaLocation()
+{
+	return uniformSceneDepth;
+}
+
 
 void Shader::SetDirectionalLight(DirectionalLight* dLight)
 {
@@ -435,6 +445,9 @@ void Shader::CompileProgram() {
 	uniformPreviousFrame = glGetUniformLocation(shaderID, "previousFrame");
 	uniformMixFactor = glGetUniformLocation(shaderID, "blendFactor");
 	uniformSceneTexture = glGetUniformLocation(shaderID, "sceneTexture");
+
+	uniformSceneColor = glGetUniformLocation(shaderID, "sceneColor");
+	uniformSceneDepth = glGetUniformLocation(shaderID, "sceneDepth");
 }
 
 Shader::~Shader()

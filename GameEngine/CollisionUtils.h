@@ -1,4 +1,4 @@
-#ifndef COLLISIONUTILS_H
+﻿#ifndef COLLISIONUTILS_H
 #define COLLISIONUTILS_H
 
 #include "Mesh.h"
@@ -141,78 +141,86 @@ inline bool PointInTriangle2D(const glm::vec2& p, const glm::vec2& a, const glm:
 	bool has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 	return !(has_neg && has_pos);
 }
-inline bool AABBIntersectsTriangle(const BoundingBox& aabb, const Triangle& tri)
-{
+// helper for the “edge × axis” SAT tests
+inline bool axisTest(
+	float a, float b,           // edge components
+	float v0a, float v0b,       // triangle vertex 0 projected comps
+	float v2a, float v2b,       // triangle vertex 2 projected comps
+	float ea, float eb          // box half‐sizes on those two axes
+) {
+	float p0 = a * v0a - b * v0b;
+	float p2 = a * v2a - b * v2b;
+	float min = std::min(p0, p2);
+	float max = std::max(p0, p2);
+	float rad = ea * std::abs(a) + eb * std::abs(b);
+	return !(min > rad || max < -rad);
+}
+
+inline bool AABBIntersectsTriangle(const BoundingBox& aabb, const Triangle& tri) {
+	// 1) bring the box center to the origin
 	glm::vec3 boxCenter = (aabb.min + aabb.max) * 0.5f;
 	glm::vec3 boxHalfSize = (aabb.max - aabb.min) * 0.5f;
 
-	// Triangle vertices relative to box center
+	// 2) translate triangle into this “box‐space”
 	glm::vec3 v0 = tri.v0 - boxCenter;
 	glm::vec3 v1 = tri.v1 - boxCenter;
 	glm::vec3 v2 = tri.v2 - boxCenter;
 
-	// Triangle edges
+	// 3) compute triangle edges
 	glm::vec3 f0 = v1 - v0;
 	glm::vec3 f1 = v2 - v1;
 	glm::vec3 f2 = v0 - v2;
 
-	// Box axes
-	glm::vec3 axes[3] = {
-		glm::vec3(1, 0, 0),
-		glm::vec3(0, 1, 0),
-		glm::vec3(0, 0, 1)
-	};
+	// 4) SAT test: 9 axes from cross(edge, box‐axis)
+	//    X axis = (1,0,0), Y axis = (0,1,0), Z axis = (0,0,1)
+	// edge f0:
+	if (!axisTest(f0.z, f0.y, v0.y, v0.z, v2.y, v2.z, boxHalfSize.y, boxHalfSize.z)) return false;
+	if (!axisTest(f0.z, f0.x, v0.x, v0.z, v2.x, v2.z, boxHalfSize.x, boxHalfSize.z)) return false;
+	if (!axisTest(f0.y, f0.x, v0.x, v0.y, v2.x, v2.y, boxHalfSize.x, boxHalfSize.y)) return false;
+	// edge f1:
+	if (!axisTest(f1.z, f1.y, v0.y, v0.z, v2.y, v2.z, boxHalfSize.y, boxHalfSize.z)) return false;
+	if (!axisTest(f1.z, f1.x, v0.x, v0.z, v2.x, v2.z, boxHalfSize.x, boxHalfSize.z)) return false;
+	if (!axisTest(f1.y, f1.x, v0.x, v0.y, v2.x, v2.y, boxHalfSize.x, boxHalfSize.y)) return false;
+	// edge f2:
+	if (!axisTest(f2.z, f2.y, v0.y, v0.z, v1.y, v1.z, boxHalfSize.y, boxHalfSize.z)) return false;
+	if (!axisTest(f2.z, f2.x, v0.x, v0.z, v1.x, v1.z, boxHalfSize.x, boxHalfSize.z)) return false;
+	if (!axisTest(f2.y, f2.x, v0.x, v0.y, v1.x, v1.y, boxHalfSize.x, boxHalfSize.y)) return false;
 
-	// 1. Test 9 cross products of triangle edges and box axes
-	for (int i = 0; i < 3; ++i) {
-		glm::vec3 edge = (i == 0) ? f0 : (i == 1) ? f1 : f2;
+	// 5) SAT test: overlap on the three principal axes of the box
+	float minX = std::min({ v0.x, v1.x, v2.x });
+	float maxX = std::max({ v0.x, v1.x, v2.x });
+	if (minX > boxHalfSize.x || maxX < -boxHalfSize.x) return false;
 
-		for (int j = 0; j < 3; ++j) {
-			glm::vec3 axis = glm::cross(edge, axes[j]);
-			if (glm::length(axis) < 1e-6f) continue; // Skip near-zero axes
+	float minY = std::min({ v0.y, v1.y, v2.y });
+	float maxY = std::max({ v0.y, v1.y, v2.y });
+	if (minY > boxHalfSize.y || maxY < -boxHalfSize.y) return false;
 
-			float minTri = std::min({ glm::dot(v0, axis), glm::dot(v1, axis), glm::dot(v2, axis) });
-			float maxTri = std::max({ glm::dot(v0, axis), glm::dot(v1, axis), glm::dot(v2, axis) });
+	float minZ = std::min({ v0.z, v1.z, v2.z });
+	float maxZ = std::max({ v0.z, v1.z, v2.z });
+	if (minZ > boxHalfSize.z || maxZ < -boxHalfSize.z) return false;
 
-			float r = boxHalfSize.x * std::abs(glm::dot(axes[0], axis)) +
-				boxHalfSize.y * std::abs(glm::dot(axes[1], axis)) +
-				boxHalfSize.z * std::abs(glm::dot(axes[2], axis));
-
-			if (minTri > r || maxTri < -r)
-				return false;
-		}
-	}
-
-	// 2. Test overlap on box normals (x/y/z)
-	for (int i = 0; i < 3; ++i) {
-		float minTri = std::min({ v0[i], v1[i], v2[i] });
-		float maxTri = std::max({ v0[i], v1[i], v2[i] });
-
-		if (minTri > boxHalfSize[i] || maxTri < -boxHalfSize[i])
-			return false;
-	}
-
-	// 3. Test triangle normal
-	glm::vec3 triNormal = glm::normalize(glm::cross(f0, f1));
-	float triOffset = glm::dot(triNormal, v0);
-
-	float r = boxHalfSize.x * std::abs(triNormal.x) +
-		boxHalfSize.y * std::abs(triNormal.y) +
-		boxHalfSize.z * std::abs(triNormal.z);
-
-	if (std::abs(triOffset) > r)
+	// 6) SAT test: overlap on the triangle’s plane normal
+	glm::vec3 triNormal = glm::cross(f0, f1);
+	float d = glm::dot(triNormal, v0);
+	float r = boxHalfSize.x * std::abs(triNormal.x)
+		+ boxHalfSize.y * std::abs(triNormal.y)
+		+ boxHalfSize.z * std::abs(triNormal.z);
+	if (d > r || d < -r)
 		return false;
 
+	// no separating axis found → they intersect
 	return true;
-
 }
+
+const float wallThreshold = 0.6f;
 
 inline void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bool& hitTop, glm::vec3& wallNormal, const std::unique_ptr<Mesh>& mesh, Camera& camera)
 {
 	if (!mesh || !mesh->IsValid) return;
 
 	// if the mesh is moving than we need to update the triangle list everytime every frame
-	mesh->UpdateTriangleList();
+	if (!mesh->rigid)
+		mesh->UpdateTriangleList();
 
 	glm::vec3 position = camera.getCameraPostion();
 	BoundingBox playerBox = camera.GetBoundingBox();
@@ -242,34 +250,29 @@ inline void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bo
 				//std::cout << "Top hit";
 			}
 		}
+		// 1) compute geometric normal once
+		glm::vec3 normal = glm::normalize(glm::cross(tri.v1 - tri.v0,
+			tri.v2 - tri.v0));
 
-		// --- Wall check ---
-		glm::vec3 normal = glm::normalize(glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0));
-		glm::vec3 playerMove = camera.position - camera.previousPosition;
-
-		// If the normal is pointing into the player, flip it
-		if (glm::dot(playerMove, normal) > 0.0f) {
+		// 2) orient so it always points *at* the camera
+		glm::vec3 viewDir = camera.getFront();  // assumed normalized
+		if (glm::dot(normal, viewDir) > 0.0f) {
 			normal = -normal;
 		}
 
-
-		const float wallThreshold = 0.6f;
-		if (std::abs(normal.y) < wallThreshold) {
-			if (AABBIntersectsTriangle(playerBox, tri)) {
-				glm::vec3 moveDelta = camera.position - camera.previousPosition;
-
-				// Flip the normal if it's facing the same direction as motion
-				if (glm::dot(normal, moveDelta) > 0.0f) {
-					normal = -normal;
-				}
-
-				hitSide = true;
-				wallNormal = normal;
-			}
+		// 3) ignore floors and ceilings (nearly horizontal triangles)
+		if (std::abs(normal.y) >= wallThreshold) {
+			continue;
 		}
 
+		// 4) only now test the AABB vs. tri
+		if (AABBIntersectsTriangle(playerBox, tri)) {
+			hitSide = true;
+			wallNormal = normal;
+			//std::cout << "Hit side wall!";
+			break;   // stop after first wall collision
+		}
 	}
-
 	if (foundGround && groundHitY > closestY) {
 		closestY = groundHitY;
 		hit = true;
@@ -307,15 +310,6 @@ inline void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float g
 		// Fallback to position-based restriction (legacy behavior)
 		glm::vec3 moveDelta = camera.position - camera.previousPosition;
 
-		// Restrict X movement if intersecting on X
-		if (camera.position.x < box.min.x || camera.position.x > box.max.x) {
-			hitSide = true;
-		}
-
-		// Restrict Z movement if intersecting on Z
-		if (camera.position.z < box.min.z || camera.position.z > box.max.z) {
-			hitSide = true;
-		}
 	}
 }
 // Projects the movement vector onto a plane defined by the wall normal

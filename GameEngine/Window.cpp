@@ -284,7 +284,6 @@ void Window::InitMotionBlurFBO(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, motionBlurFBO[1]);
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);

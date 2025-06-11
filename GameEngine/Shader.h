@@ -49,7 +49,11 @@ public:
 	GLuint GetUniformMixFactorLocation();
 	GLuint GetUniformSceneTextureLocation();
 	GLuint GetUniformSceneColorLocation();
-	GLuint GetIUniformSceneDetaLocation();
+	GLuint GetUniformSceneDepthLocation();
+	GLuint GetUniformFocalLengthLocation();
+	GLuint GetUniformFocalRangeLocation();
+	GLuint GetUniformMaxBlurLocation();
+	GLuint GetUniformTexelSizeLocation();
 
 
 	GLuint GetShaderID() { return shaderID; }
@@ -62,7 +66,9 @@ public:
 	void SetDirectionalLightTransform(glm::mat4* Itransform);
 	void SetLightMatrices(std::vector<glm::mat4> lightMatrices);
 	void SetMixFactor(float value);
-
+	void SetFocalLength(float value);
+	void SetFocalRange(float value);
+	void SetMaxBlur(float value);
 
 	void UseShader();
 	void ClearShader();
@@ -81,7 +87,7 @@ private:
 		uniformTextColor, uniformTextProjection,
 		uniformSpriteTexture,
 		uniformCurrentFrame, uniformPreviousFrame, uniformMixFactor, uniformSceneTexture,
-		uniformSceneColor, uniformSceneDepth;
+		uniformSceneColor, uniformSceneDepth, uniformFocalLength, uniformFocalRange, uniformMaxBlur, uniformTexelSize;
 	GLuint uniformLightMatrices[6];
 
 	struct {

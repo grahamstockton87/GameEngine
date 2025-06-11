@@ -204,9 +204,29 @@ GLuint Shader::GetUniformSceneColorLocation()
 	return uniformSceneColor;
 }
 
-GLuint Shader::GetIUniformSceneDetaLocation()
+GLuint Shader::GetUniformSceneDepthLocation()
 {
 	return uniformSceneDepth;
+}
+
+GLuint Shader::GetUniformFocalLengthLocation()
+{
+	return  uniformFocalLength;
+}
+
+GLuint Shader::GetUniformFocalRangeLocation()
+{
+	return uniformFocalRange;
+}
+
+GLuint Shader::GetUniformMaxBlurLocation()
+{
+	return uniformMaxBlur;
+}
+
+GLuint Shader::GetUniformTexelSizeLocation()
+{
+	return uniformTexelSize;
 }
 
 
@@ -275,6 +295,21 @@ void Shader::SetLightMatrices(std::vector<glm::mat4> lightMatrices)
 void Shader::SetMixFactor(float value)
 {
 	glUniform1f(uniformMixFactor, value);
+}
+
+void Shader::SetFocalLength(float value)
+{
+	glUniform1f(uniformFocalLength, value);
+}
+
+void Shader::SetFocalRange(float value)
+{
+	glUniform1f(uniformFocalRange, value);
+}
+
+void Shader::SetMaxBlur(float value)
+{
+	glUniform1f(uniformMaxBlur, value);
 }
 
 void Shader::UseShader()

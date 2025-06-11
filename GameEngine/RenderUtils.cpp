@@ -13,8 +13,7 @@ namespace RenderUtils {
     /// blend       – (optional) value for a "blendFactor" uniform
     void DrawFullScreenQuad(Shader& shader,
         GLuint tex0, const char* uni0,
-        GLuint tex1, const char* uni1,
-        float  blend)
+        GLuint tex1, const char* uni1)
     {
         // 1) Lazy-create the quad VAO/VBO
         if (quadVAO == 0) {
@@ -46,7 +45,6 @@ namespace RenderUtils {
 
         // 2) Bind shader + textures + uniforms
         shader.UseShader();
-		shader.SetMixFactor(blend); // if your shader has a mix factor uniform
         // texture 0
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex0);
@@ -60,10 +58,6 @@ namespace RenderUtils {
             GLint loc1 = glGetUniformLocation(shader.GetShaderID(), uni1);
             if (loc1 >= 0) glUniform1i(loc1, 1);
         }
-
-        // blend factor (if your shader has it)
-        GLint blendLoc = glGetUniformLocation(shader.GetShaderID(), "blendFactor");
-        if (blendLoc >= 0) glUniform1f(blendLoc, blend);
 
         // 3) Draw
         glBindVertexArray(quadVAO);

@@ -314,29 +314,26 @@ bool Game::Initialize() {
 }
 
 void Game::Run() {
-	// Figure out which FBO is scene and which holds history:
-	const GLuint sceneFBO = mainWindow.GetMotionBlurFBO(0);
-	const GLuint historyFBO = mainWindow.GetMotionBlurFBO(1);
+	// Screen size
+	int screenW = mainWindow.getBufferWidth();
+	int screenH = mainWindow.getBufferHeight();
 
-	bool firstFrame = true;
+	// Precompute texel size for DOF
+	glm::vec2 texelSize(1.0f / float(screenW), 1.0f / float(screenH));
 
-	// -- One-time clear so history starts empty --
-	for (GLuint fbo : { sceneFBO, historyFBO }) {
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
-	}
+	// Clear motion-blur history once
+	glBindFramebuffer(GL_FRAMEBUFFER, mainWindow.GetMotionBlurFBO(pong));
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// Main loop
 	while (!mainWindow.getShouldClose()) {
-		// ----- 1) Update game state -----
+		// 1) Update game state
 		closestY = -FLT_MAX;
 		dogHit = false;
 		wallNormal = glm::vec3(0.0f);
 		delta = camera.position - camera.previousPosition;
-		hit = false;
-		hitSide = false;
-		hitTop = false;
+		hit = hitSide = hitTop = false;
 
 		Update();
 		ProcessInput();
@@ -345,118 +342,104 @@ void Game::Run() {
 		Shoot();
 		camera.updatePhysics(deltaTime);
 
-		// ----- 2) Prepare projections -----
-		glm::mat4 orthoProj = glm::ortho(
-			0.0f, float(mainWindow.getBufferWidth()),
-			0.0f, float(mainWindow.getBufferHeight())
-		);
+		// 2) Prepare projections
+		glm::mat4 orthoProj = glm::ortho(0.0f, float(screenW), 0.0f, float(screenH));
 		glm::mat4 perspProj = glm::perspective(
 			glm::radians(camera.getFov()),
-			float(mainWindow.getBufferWidth()) / mainWindow.getBufferHeight(),
+			float(screenW) / float(screenH),
 			0.1f, 100.0f
 		);
 
-		// ----- 3) Render scene into sceneFBO -----
+		// 3) Render scene into sceneFBO (with depth)
 		glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-		glViewport(0, 0,
-			mainWindow.getBufferWidth(),
-			mainWindow.getBufferHeight());
+		glViewport(0, 0, screenW, screenH);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		RenderPass(perspProj, camera.calculateViewMatrix());
 
-		// ----- 4) Blend scene + history into historyFBO -----
-		glBindFramebuffer(GL_FRAMEBUFFER, historyFBO);
-		glViewport(0, 0, mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
+		// 4) Motion-blur: blend ping -> pong
+		glBindFramebuffer(GL_FRAMEBUFFER, mainWindow.GetMotionBlurFBO(pong));
 		glDisable(GL_DEPTH_TEST);
-		// clear out only the color (we’ll draw fresh)
-		//glClear(GL_COLOR_BUFFER_BIT);
-
 		motionBlurShader.UseShader();
+		motionBlurShader.SetMixFactor(blurFactor);
 		RenderUtils::DrawFullScreenQuad(
 			motionBlurShader,
-			// unit0 = new scene
-			mainWindow.GetMotionBlurTexture(0), "currentFrame",
-			// unit1 = old history (or scene on first frame)
+			mainWindow.GetMotionBlurTexture(ping), "currentFrame",
 			firstFrame
-			? mainWindow.GetMotionBlurTexture(0)
-			: mainWindow.GetMotionBlurTexture(1),
-			"previousFrame",
-			// blend 90% new + 10% old
-			0.5f
+			? mainWindow.GetMotionBlurTexture(ping)
+			: mainWindow.GetMotionBlurTexture(pong),
+			"previousFrame"
 		);
 
-		// ----- 5) Blit accumulated result to screen -----
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// 5) Depth-of-Field: blur pong + depth -> dofFBO
+		glBindFramebuffer(GL_FRAMEBUFFER, dofFBO);
+		glViewport(0, 0, screenW, screenH);
+		glDisable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		depthOfFieldShader.UseShader();
+		depthOfFieldShader.SetFocalLength(focalDistance);
+		depthOfFieldShader.SetFocalRange(focalRange);
+		depthOfFieldShader.SetMaxBlur(maxBlur);
+		glUniform2f(
+			depthOfFieldShader.GetUniformTexelSizeLocation(),
+			texelSize.x, texelSize.y
+		);
+		RenderUtils::DrawFullScreenQuad(
+			depthOfFieldShader,
+			mainWindow.GetMotionBlurTexture(pong), "sceneColor",
+			sceneDepthTex, "sceneDepth"
+		);
+
+		// 6) Final pass: draw DOF result to screen
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, screenW, screenH);
+		glClear(GL_COLOR_BUFFER_BIT);
 		finalBlitShader.UseShader();
 		RenderUtils::DrawFullScreenQuad(
 			finalBlitShader,
-			mainWindow.GetMotionBlurTexture(1), "sceneTexture"
+			dofColorTex, "sceneTexture",
+			0, nullptr
 		);
 
-		// ----- 6) HUD & debug overlays -----
+		// 7) HUD & overlays
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		// FPS text
 		textShader.UseShader();
-		std::string fpsValue = "FPS: " + std::to_string(int(fps));
 		fpsText.RenderText(
-			textShader, fpsValue,
-			10.0f, mainWindow.getBufferHeight() - 30.0f,
+			textShader,
+			"FPS: " + std::to_string(int(fps)),
+			10.0f, screenH - 30.0f,
 			0.4f, glm::vec3(1.0f), orthoProj
 		);
 
+		// Health HUD
+		healthBar.CreateSprite();
+		healthHUD.Render(hudShader, orthoProj);
+
+		// Debug boxes & rays
 		debugBox.UseShader();
 		for (auto& m : meshList)
 			DrawBoundingBox(m->box, debugBox, perspProj, camera.calculateViewMatrix());
 		for (auto& mdl : modelList)
 			DrawBoundingBox(mdl->GetBox(), debugBox, perspProj, camera.calculateViewMatrix());
-
-		healthBar.CreateSprite();
-		healthHUD.Render(hudShader, orthoProj);
-
 		rayRenderer.Render(perspProj, camera.calculateViewMatrix(), RayShader);
 
-		// ----- 7) Finish frame -----
-		glUseProgram(0);
+		glDisable(GL_BLEND);
 		mainWindow.swapBuffers();
-		if (firstFrame) {
-			directionalShadowShader.Validate();
-			for (auto& mesh : meshList) {
-				if (mesh->UsesBoxCollision)
-					mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-				else
-					mesh->UpdateTriangleList(); // Update triangle list for collision
-			}
-			for (auto& model : modelList) {
+		glUseProgram(0);
 
-				if (model->UsesBoxCollision)
-					model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-				else
-					model->UpdateTriangleList(); // Update triangle list for collision
-			}
-		}
-		else {
-			// Update Bounding Boxes or Triangles
-			for (auto& mesh : meshList) {
-				if (!mesh->rigid) {
-					if (mesh->UsesBoxCollision)
-						mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-					else
-						mesh->UpdateTriangleList();
-				}
-			}
-			for (auto& model : modelList) {
-				if (!model->rigid) {
-					if (model->UsesBoxCollision)
-						model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-					else
-						model->UpdateTriangleList();
-				}
-			}
-		}
+		// swap ping/pong for next frame
+		std::swap(ping, pong);
 		firstFrame = false;
 	}
 }
+
+
+
 
 
 //if (debugDisplayMode == 0) {

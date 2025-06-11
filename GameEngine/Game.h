@@ -105,6 +105,22 @@ private:
 	Shader textShader;
 	Shader hudShader;
 	Shader depthOfFieldShader;
+	// — your post?process FBOs & textures —
+
+	// scene-FBO for DOF (color + depth)
+	GLuint sceneFBO = 0;
+	GLuint sceneColorTex = 0;
+	GLuint sceneDepthTex = 0;
+
+	// DOF target FBO
+	GLuint dofFBO = 0;
+	GLuint dofColorTex = 0;
+
+	// Blending & DOF parameters
+	const float blurFactor = 0.5f;
+	const float focalDistance = 5.0f;
+	const float focalRange = 2.0f;
+	const float maxBlur = 8.0f;
 
 	Texture brickTexture;
 	Texture transparent;

@@ -121,10 +121,9 @@ private:
 	GLuint dofDepthTex = 0;
 
 	// Blending & DOF parameters
-	const float blurFactor = 4.0f;
 	const float focalDistance = 10.0f;
-	const float focalRange = 2.0f;
-	const float maxBlur = 100.0f;
+	const float focalRange = 5.0f;
+	const float maxBlur = 4.0f;
 
 	Texture brickTexture;
 	Texture transparent;

@@ -299,21 +299,25 @@ void Shader::SetMixFactor(float value)
 
 void Shader::SetFocalDistance(float value)
 {
+	uniformFocalLength = glGetUniformLocation(shaderID, "focalDistance");
 	glUniform1f(uniformFocalLength, value);
 }
 
 void Shader::SetFocalRange(float value)
 {
+	uniformFocalRange = glGetUniformLocation(shaderID, "focalRange");
 	glUniform1f(uniformFocalRange, value);
 }
 
 void Shader::SetMaxBlur(float value)
 {
+	uniformMaxBlur = glGetUniformLocation(shaderID, "maxBlur");
 	glUniform1f(uniformMaxBlur, value);
 }
 
 void Shader::SetTexelSize(glm::vec2 value)
 {
+
 	glUniform2f(uniformTexelSize, value.x, value.y);
 }
 

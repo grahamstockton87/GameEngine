@@ -432,7 +432,9 @@ void Game::Run() {
 		depthOfFieldShader.SetFocalDistance(focalDistance);
 		depthOfFieldShader.SetFocalRange(focalRange);
 		depthOfFieldShader.SetMaxBlur(maxBlur);
-		depthOfFieldShader.SetTexelSize(texelSize);
+		glm::vec2 texelSize2(1.0f / screenW, 1.0f / screenH);
+		glUniform2f(depthOfFieldShader.GetUniformLocation("texelSize"),
+			texelSize2.x, texelSize2.y);
 
 		// bind scene color → unit 0
 		glActiveTexture(GL_TEXTURE0);

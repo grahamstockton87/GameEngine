@@ -66,12 +66,20 @@ public:
 	void SetDirectionalLightTransform(glm::mat4* Itransform);
 	void SetLightMatrices(std::vector<glm::mat4> lightMatrices);
 	void SetMixFactor(float value);
-	void SetFocalLength(float value);
+	void SetFocalDistance(float value);
 	void SetFocalRange(float value);
 	void SetMaxBlur(float value);
+	void SetTexelSize(glm::vec2 value);
 
 	void UseShader();
 	void ClearShader();
+
+	void SetUniform(const std::string& name, const glm::mat4& mat);
+	GLint GetUniformLocation(const std::string& name) const;
+	void SetUniform(const std::string& name, int value);
+	void SetUniform(const std::string& name, float value);
+	void SetUniform(const std::string& name, const glm::vec2& vec);
+	void SetUniform(const std::string& name, const glm::vec3& vec);
 
 	~Shader();
 
@@ -137,6 +145,7 @@ private:
 	void AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType);
 
 	void CompileProgram();
+
 };
 
 #endif // !SHADER_H

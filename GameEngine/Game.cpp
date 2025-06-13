@@ -1,10 +1,82 @@
 ﻿#include "Game.h"
+
 Game::Game()
 {
 }
 Game::~Game()
 {
 }
+
+void Game::initDOF() {
+	screenW = mainWindow.getBufferWidth();
+	screenH = mainWindow.getBufferHeight();
+
+	// ------------------ DOF FBO ------------------
+	glGenFramebuffers(1, &dofFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, dofFBO);
+
+	// Color texture for DOF output
+	glGenTextures(1, &dofColorTex);
+	glBindTexture(GL_TEXTURE_2D, dofColorTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dofColorTex, 0);
+
+	// Optional depth (not needed unless you're rendering geometry here — which you're not)
+	glGenTextures(1, &dofDepthTex);
+	glBindTexture(GL_TEXTURE_2D, dofDepthTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, screenW, screenH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, dofDepthTex, 0);
+
+	// Only drawing to the color buffer
+	GLenum drawBufs1[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, drawBufs1);
+
+	// Check completeness
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cerr << "ERROR: DOF FBO is not complete!" << std::endl;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// ------------------ SCENE FBO ------------------
+	glGenFramebuffers(1, &sceneFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+
+	// Scene color texture
+	glGenTextures(1, &sceneColorTex);
+	glBindTexture(GL_TEXTURE_2D, sceneColorTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTex, 0);
+
+	// Scene depth texture
+	glGenTextures(1, &sceneDepthTex);
+	glBindTexture(GL_TEXTURE_2D, sceneDepthTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, screenW, screenH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTex, 0);
+
+	GLenum drawBufs2[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, drawBufs2);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cerr << "ERROR: Scene FBO is not complete!" << std::endl;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Final error check
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR)
+		std::cerr << "OpenGL Error in initDOF: " << err << std::endl;
+}
+
+
+
 bool Game::Initialize() {
 // Setup Window
 
@@ -310,137 +382,161 @@ bool Game::Initialize() {
 	std::cout << "Playing MP3..." << std::endl;
 
 	mainWindow.InitMotionBlurFBO(mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
+	screenW = mainWindow.getBufferWidth();
+	screenH = mainWindow.getBufferHeight();
+	initDOF();
 
 }
 
 void Game::Run() {
-	// Screen size
-	int screenW = mainWindow.getBufferWidth();
-	int screenH = mainWindow.getBufferHeight();
 
-	// Precompute texel size for DOF
-	glm::vec2 texelSize(1.0f / float(screenW), 1.0f / float(screenH));
-
-	// Clear motion-blur history once
-	glBindFramebuffer(GL_FRAMEBUFFER, mainWindow.GetMotionBlurFBO(pong));
-	glClearColor(0, 0, 0, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	while (!mainWindow.getShouldClose()) {
-		// 1) Update game state
+		int screenW = mainWindow.getBufferWidth();
+		int screenH = mainWindow.getBufferHeight();
+		glm::vec2 texelSize(1.0f / float(screenW), 1.0f / float(screenH));
+		// —— 1) Update & Input ——
 		closestY = -FLT_MAX;
 		dogHit = false;
 		wallNormal = glm::vec3(0.0f);
 		delta = camera.position - camera.previousPosition;
-		hit = hitSide = hitTop = false;
-
 		Update();
-		ProcessInput();
 		CheckCollision();
+		ProcessInput();
 		GroundPlayer();
 		Shoot();
 		camera.updatePhysics(deltaTime);
 
-		// 2) Prepare projections
-		glm::mat4 orthoProj = glm::ortho(0.0f, float(screenW), 0.0f, float(screenH));
+		// —— 2) Setup matrices ——
+		glm::mat4 orthoProj = glm::ortho(0.f, float(screenW), 0.f, float(screenH));
 		glm::mat4 perspProj = glm::perspective(
 			glm::radians(camera.getFov()),
 			float(screenW) / float(screenH),
-			0.1f, 100.0f
+			0.1f, 100.f
 		);
 
-		// 3) Render scene into sceneFBO (with depth)
+		// —— 3) Render scene into sceneFBO ——
 		glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
 		glViewport(0, 0, screenW, screenH);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		RenderPass(perspProj, camera.calculateViewMatrix());
 
-		// 4) Motion-blur: blend ping -> pong
-		glBindFramebuffer(GL_FRAMEBUFFER, mainWindow.GetMotionBlurFBO(pong));
-		glDisable(GL_DEPTH_TEST);
-		motionBlurShader.UseShader();
-		motionBlurShader.SetMixFactor(blurFactor);
-		RenderUtils::DrawFullScreenQuad(
-			motionBlurShader,
-			mainWindow.GetMotionBlurTexture(ping), "currentFrame",
-			firstFrame
-			? mainWindow.GetMotionBlurTexture(ping)
-			: mainWindow.GetMotionBlurTexture(pong),
-			"previousFrame"
-		);
-
-		// 5) Depth-of-Field: blur pong + depth -> dofFBO
+		// —— 4) Depth-of-Field pass (sceneColor + sceneDepth → dofFBO) ——
 		glBindFramebuffer(GL_FRAMEBUFFER, dofFBO);
 		glViewport(0, 0, screenW, screenH);
 		glDisable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT);            // clear out old DOF buffer
 
 		depthOfFieldShader.UseShader();
-		depthOfFieldShader.SetFocalLength(focalDistance);
+		depthOfFieldShader.SetFocalDistance(focalDistance);
 		depthOfFieldShader.SetFocalRange(focalRange);
 		depthOfFieldShader.SetMaxBlur(maxBlur);
-		glUniform2f(
-			depthOfFieldShader.GetUniformTexelSizeLocation(),
-			texelSize.x, texelSize.y
-		);
+		depthOfFieldShader.SetTexelSize(texelSize);
+
+		// bind scene color → unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, sceneColorTex);
+		glUniform1i(depthOfFieldShader.GetUniformLocation("sceneColor"), 0);
+
+		// bind scene depth → unit 1
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, sceneDepthTex);
+		glUniform1i(depthOfFieldShader.GetUniformLocation("sceneDepth"), 1);
+
+		// DOF pass: bind both sceneColor + sceneDepth
 		RenderUtils::DrawFullScreenQuad(
 			depthOfFieldShader,
-			mainWindow.GetMotionBlurTexture(pong), "sceneColor",
+			sceneColorTex, "sceneColor",
 			sceneDepthTex, "sceneDepth"
 		);
 
-		// 6) Final pass: draw DOF result to screen
+		// —— 5) Final Blit (dofFBO → screen) ——
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, screenW, screenH);
+		glDisable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT);
+
 		finalBlitShader.UseShader();
+		// bind dof result → unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, dofColorTex);
+
+		// final blit: the single-texture overload
 		RenderUtils::DrawFullScreenQuad(
 			finalBlitShader,
 			dofColorTex, "sceneTexture",
-			0, nullptr
+			dofColorTex, "sceneColor" // same texture for both params
 		);
 
-		// 7) HUD & overlays
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-		// FPS text
+		// —— 6) HUD & Debug Overlays ——
+		//glEnable(GL_DEPTH_TEST);  // if your debug boxes need depth
 		textShader.UseShader();
 		fpsText.RenderText(
 			textShader,
 			"FPS: " + std::to_string(int(fps)),
-			10.0f, screenH - 30.0f,
-			0.4f, glm::vec3(1.0f), orthoProj
+			10.f, float(screenH - 30),
+			0.4f, glm::vec3(1.f), orthoProj
 		);
-
-		// Health HUD
-		healthBar.CreateSprite();
-		healthHUD.Render(hudShader, orthoProj);
-
-		// Debug boxes & rays
+		glEnable(GL_DEPTH_TEST);
 		debugBox.UseShader();
 		for (auto& m : meshList)
 			DrawBoundingBox(m->box, debugBox, perspProj, camera.calculateViewMatrix());
 		for (auto& mdl : modelList)
 			DrawBoundingBox(mdl->GetBox(), debugBox, perspProj, camera.calculateViewMatrix());
+
+		healthBar.CreateSprite();
+		healthHUD.Render(hudShader, orthoProj);
+
 		rayRenderer.Render(perspProj, camera.calculateViewMatrix(), RayShader);
 
-		glDisable(GL_BLEND);
-		mainWindow.swapBuffers();
+		// —— 7) End frame ——
 		glUseProgram(0);
-
-		// swap ping/pong for next frame
-		std::swap(ping, pong);
-		firstFrame = false;
+		mainWindow.swapBuffers();
+		updateFirstFrame(); // Update bounding boxes or triangles on the first frame
+		firstFrame = false; // Set firstFrame to false after the first render loop iteration
 	}
 }
 
 
+void Game::updateFirstFrame() {
+	if (firstFrame) {
+		directionalShadowShader.Validate();
+		for (auto& mesh : meshList) {
+			if (mesh->UsesBoxCollision)
+				mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+			else
+				mesh->UpdateTriangleList(); // Update triangle list for collision
+		}
+		for (auto& model : modelList) {
 
-
+			if (model->UsesBoxCollision)
+				model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+			else
+				model->UpdateTriangleList(); // Update triangle list for collision
+		}
+	}
+	else {
+		// Update Bounding Boxes or Triangles
+		for (auto& mesh : meshList) {
+			if (!mesh->rigid) {
+				if (mesh->UsesBoxCollision)
+					mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+				else
+					mesh->UpdateTriangleList();
+			}
+		}
+		for (auto& model : modelList) {
+			if (!model->rigid) {
+				if (model->UsesBoxCollision)
+					model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
+				else
+					model->UpdateTriangleList();
+			}
+		}
+	}
+	firstFrame = false;
+}
 
 //if (debugDisplayMode == 0) {
 //	glBindTexture(GL_TEXTURE_2D, mainWindow.GetMotionBlurTexture(nextFBO));
@@ -454,8 +550,6 @@ void Game::Run() {
 //	glBindTexture(GL_TEXTURE_2D, mainWindow.GetMotionBlurTexture(currentFBO));
 //	std::cout << "[CURR] currentFBO\n";
 //}
-
-
 
 void Game::Update() {
 
@@ -619,7 +713,7 @@ void Game::CreateShaders() {
 	finalBlitShader.CreateFromFiles("Shaders/fullScreen_vert.glsl", "Shaders/fullScreen_frag.glsl");
 
 	depthOfFieldShader = Shader();
-	depthOfFieldShader.CreateFromFiles("Shaders/depth_field_vert.glsl", "Shaders/depth_field_frag.glsl");
+	depthOfFieldShader.CreateFromFiles("Shaders/fullScreen_vert.glsl", "Shaders/depth_field_frag.glsl");
 }
 void Game::DirectionalShadowPass(DirectionalLight* light) {
 	directionalShadowShader.UseShader();

@@ -10,5 +10,8 @@ namespace RenderUtils{
     void DrawFullScreenQuad(Shader& shader,
     GLuint tex0, const char* uni0,
     GLuint tex1 = 0, const char* uni1 = nullptr);
+
+    void DrawFullScreenQuad(Shader& shader, GLuint tex);
+    void DrawFullScreenQuad(Shader& shader);
 }
 

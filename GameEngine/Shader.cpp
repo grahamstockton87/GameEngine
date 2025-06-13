@@ -297,7 +297,7 @@ void Shader::SetMixFactor(float value)
 	glUniform1f(uniformMixFactor, value);
 }
 
-void Shader::SetFocalLength(float value)
+void Shader::SetFocalDistance(float value)
 {
 	glUniform1f(uniformFocalLength, value);
 }
@@ -310,6 +310,11 @@ void Shader::SetFocalRange(float value)
 void Shader::SetMaxBlur(float value)
 {
 	glUniform1f(uniformMaxBlur, value);
+}
+
+void Shader::SetTexelSize(glm::vec2 value)
+{
+	glUniform2f(uniformTexelSize, value.x, value.y);
 }
 
 void Shader::UseShader()
@@ -483,6 +488,43 @@ void Shader::CompileProgram() {
 
 	uniformSceneColor = glGetUniformLocation(shaderID, "sceneColor");
 	uniformSceneDepth = glGetUniformLocation(shaderID, "sceneDepth");
+}
+// Set an integer uniform
+void Shader::SetUniform(const std::string& name, int value)  {
+	GLint loc = glGetUniformLocation(shaderID, name.c_str());
+	glUniform1i(loc, value);
+}
+
+// Set a float uniform
+void Shader::SetUniform(const std::string& name, float value)  {
+	GLint loc = glGetUniformLocation(shaderID, name.c_str());
+	glUniform1f(loc, value);
+}
+
+// Set a vec2 uniform
+void Shader::SetUniform(const std::string& name, const glm::vec2& vec)  {
+	GLint loc = glGetUniformLocation(shaderID, name.c_str());
+	glUniform2fv(loc, 1, glm::value_ptr(vec));
+}
+
+// Set a vec3 uniform
+void Shader::SetUniform(const std::string& name, const glm::vec3& vec)  {
+	GLint loc = glGetUniformLocation(shaderID, name.c_str());
+	glUniform3fv(loc, 1, glm::value_ptr(vec));
+}
+
+// Set a mat4 uniform
+void Shader::SetUniform(const std::string& name, const glm::mat4& mat)  {
+	GLint loc = glGetUniformLocation(shaderID, name.c_str());
+	glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
+}
+GLint Shader::GetUniformLocation(const std::string& name) const {
+	GLint location = glGetUniformLocation(shaderID, name.c_str());
+	if (location == -1) {
+		std::cerr << "Warning: uniform '" << name
+			<< "' not found or not used in shader (program " << shaderID << ")\n";
+	}
+	return location;
 }
 
 Shader::~Shader()

@@ -67,12 +67,17 @@ private:
 	void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix);
 	void scaleUVs(GLfloat* vertices, int totalFloatCount, int scale);
 	void DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::mat4& projection, const glm::mat4& view);
+	void initDOF();
+	void updateFirstFrame();
+	//void InitDepthOfFieldFBO();
 
 	// Variables
 	Window mainWindow;
 	float centerX = mainWindow.getBufferWidth() / 2.0f; // Center of the screen
 	float rightX = centerX;
 	float currentWidth = 0;
+	int screenW = mainWindow.getBufferWidth();
+	int screenH = mainWindow.getBufferHeight();
 	// TEXT RENDER
   
 
@@ -106,8 +111,6 @@ private:
 	Shader hudShader;
 	Shader depthOfFieldShader;
 	// — your post?process FBOs & textures —
-
-	// scene-FBO for DOF (color + depth)
 	GLuint sceneFBO = 0;
 	GLuint sceneColorTex = 0;
 	GLuint sceneDepthTex = 0;
@@ -115,12 +118,13 @@ private:
 	// DOF target FBO
 	GLuint dofFBO = 0;
 	GLuint dofColorTex = 0;
+	GLuint dofDepthTex = 0;
 
 	// Blending & DOF parameters
-	const float blurFactor = 0.5f;
-	const float focalDistance = 5.0f;
+	const float blurFactor = 4.0f;
+	const float focalDistance = 10.0f;
 	const float focalRange = 2.0f;
-	const float maxBlur = 8.0f;
+	const float maxBlur = 100.0f;
 
 	Texture brickTexture;
 	Texture transparent;

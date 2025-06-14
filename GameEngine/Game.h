@@ -103,8 +103,10 @@ private:
 	Shader finalBlitShader;
 	int currentFBO = 0;
 	int nextFBO = 1;
+	GLuint historyFBO[2];
+	GLuint historyTex[2];
+	GLuint    cur = 0;
 
-	
 	Shader RayShader;
 	Shader debugBox;
 	Shader textShader;

@@ -45,6 +45,8 @@
 #include "TextRenderer.h"
 #include "HUD.h"
 #include "RenderUtils.h"
+#include "Frame.h"
+#include "AnimationSprite.h"
 
 class Game {
 public:
@@ -81,7 +83,7 @@ private:
 	// TEXT RENDER
   
 
-	Camera camera = Camera(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 20.0f, 5.0f, 45.0f);
+	Camera camera = Camera(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.5f, 20.0f, 5.0f, 45.0f);
 	glm::vec3 delta = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::mat4 projection;
 
@@ -125,7 +127,7 @@ private:
 	// Blending & DOF parameters
 	const float focalDistance = 10.0f;
 	const float focalRange = 5.0f;
-	const float maxBlur = 4.0f;
+	const float maxBlur = 2.0f;
 
 	Texture brickTexture;
 	Texture transparent;
@@ -143,7 +145,31 @@ private:
 
 	Skybox skybox;
 
+	Skybox forestSkybox;
+	Texture forestSkyboxTexture;
+
 	Sprite healthBar;
+	Shader spriteShader;
+	// Replace the declaration of indicesSprite with the following:  
+	GLfloat verticesSprite[16];
+	GLuint indicesSprite[6] = { 0, 1, 2, 2, 3, 0 }; // Indices for the sprite quad
+
+	float frameTime = 0.6f;         // 100ms per frame
+	float accumulator = 0;
+	int   currentFrame = 0;
+
+	// GUN variables
+	Sprite handAnimationSprite;
+	Texture handAnimationTexture;
+	Animation handAnimation;
+	GLfloat spriteWidth = 400.0f; // Width of the sprite
+	GLfloat spriteHeight = 400.0f; // Height of the sprite
+	AudioPlayer gunAudioPlayer;
+	float shootCooldown = 0.0f;  // Time remaining before next allowed shot
+	const float shootCooldownDuration = 0.5f;  // 2 seconds cooldown
+
+	Texture crosshairTexture;
+	Sprite crosshairSprite;
 
 	TextRenderer fpsText;
 	RayRenderer rayRenderer; 
@@ -156,9 +182,10 @@ private:
 
 	bool ranOnce = false;
 
-	glm::vec3 dogPosition = glm::vec3(-20.0f, 10.0f, 10.0f);  // Initial dog world position
-	float dogHealth = 100.0f;
+	glm::vec3 dogPosition = glm::vec3(-20.0f, 0.0f, 10.0f);  // Initial dog world position
+	float dogHealth = 10.0f;
 	bool dogHit = false;
+	float dogSpeed = 0.8f; // Units per second (tweak as needed)
 
 	GLuint hudVAO, hudVBO;
 
@@ -178,9 +205,6 @@ private:
 	bool firstFrame = true;
 
 	double deltaLastTime = glfwGetTime();
-
-	float spriteWidth = 400.0f;
-	float spriteHeight = 20.0f;
 
 	float windowWidth = static_cast<float>(mainWindow.getBufferWidth());
 	float windowHeight = static_cast<float>(mainWindow.getBufferHeight());

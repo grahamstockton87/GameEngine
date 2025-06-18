@@ -19,8 +19,32 @@ class Model {
 public:
 	Model();
 
-	// Prevent copy
-	Model(const Model&) = default;
+	// copy
+		// deep-copy
+	Model(const Model& other)
+		: box(other.box),
+		untransformedBox(other.untransformedBox),
+		shootable(other.shootable),
+		IsValid(other.IsValid),
+		rigid(other.rigid),
+		UsesBoxCollision(other.UsesBoxCollision),
+		model(other.model)
+	{
+		// 1) Deep-copy meshes
+		meshList.clear();
+
+		for (auto const& mptr : other.meshList) {
+			// Assuming Mesh has a copy ctor:
+			meshList.push_back(std::make_unique<Mesh>(*mptr));
+		}
+
+		// 2) Deep-copy textures (if textureList holds unique_ptr<Texture>)
+		textureList.clear();
+		textureList.reserve(other.textureList.size());
+		for (auto const& tptr : other.textureList) {
+			textureList.push_back(std::make_unique<Texture>(*tptr));
+		}
+	}
 	Model& operator=(const Model&) = delete;
 
 	// Allow move

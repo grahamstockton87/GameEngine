@@ -46,14 +46,17 @@ void RayRenderer::Render(const glm::mat4& projection, const glm::mat4& view, Sha
             << std::endl;
         return;
     }
+
+    glEnable(GL_DEPTH_TEST);
+
 	rayShader.UseShader();
 
     // DEBUG LINE RAY
    
     glLineWidth(10.0f);
 
-    glUniformMatrix4fv(rayShader.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniformMatrix4fv(rayShader.GetViewLocation(), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(rayShader.GetShaderID(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(rayShader.GetShaderID(), "view"), 1, GL_FALSE, glm::value_ptr(view));
 
     glBindVertexArray(rayVAO);
     glDrawArrays(GL_LINES, 0, 2);

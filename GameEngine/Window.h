@@ -23,6 +23,7 @@ public:
 	GLfloat getYScrollChange();
 
 	bool getLeftClicked() { return leftMouseClicked; };
+	bool getRightClicked() { return rightMouseClicked; };
 	GLFWwindow* getGLFWwindow() { return mainWindow; }
 
 	void swapBuffers() { glfwSwapBuffers(mainWindow); }
@@ -58,6 +59,7 @@ private:
 	bool mouseFirstMoved;
 	bool wheelFirstMoved;
 	bool leftMouseClicked;
+	bool rightMouseClicked;
 
 	static void handleKeys(GLFWwindow* window, int key, int code, int action, int mode);
 	static void handleMouse(GLFWwindow* window, double xPos, double yPos);

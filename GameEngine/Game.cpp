@@ -1,5 +1,11 @@
 ﻿#include "Game.h"
 
+
+
+#include <cstddef>
+#include <GL/glew.h>
+
+
 Game::Game()
 {
 }
@@ -74,9 +80,6 @@ void Game::initDOF() {
 	while ((err = glGetError()) != GL_NO_ERROR)
 		std::cerr << "OpenGL Error in initDOF: " << err << std::endl;
 }
-
-
-
 bool Game::Initialize() {
 // Setup Window
 
@@ -113,20 +116,32 @@ bool Game::Initialize() {
 	healthBarTexture = Texture("Textures/healthBar.jpg");
 	healthBarTexture.LoadTexture();
 
+	handAnimationTexture = Texture("Textures/gunAnimation.png");
+	handAnimationTexture.LoadTextureA();
+
+	crosshairTexture = Texture("Textures/crosshair.png");
+	crosshairTexture.LoadTextureA();
+
 	dog = std::make_unique<Model>();
 	dog->LoadModel("Models/dog.obj");
 	dog->rigid = false;
 	dog->UsesBoxCollision = true;
 	modelList.push_back(std::move(dog));
 
-	land = std::make_unique<Model>();
-	land->LoadModel("Models/LevelDesignBase2.obj");
-	land->scaleUVs(20.0f);
-	land->model = glm::mat4(1.0f);
-	land->scale(3.0f, 3.0f, 3.0f);
-	land->SetRigid(true);
-	land->UsesBoxCollision = false; // Disable box collision for this model
-	modelList.push_back(std::move(land));
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			land = std::make_unique<Model>();
+			land->LoadModel("Models/LevelDesignBase2.obj");
+			land->scaleUVs(20.0f);
+			land->model = glm::mat4(1.0f);
+			land->scale(3.0f, 3.0f, 3.0f);
+			land->translate(0.0f, 0.0f, i * 10.0f);
+			land->SetRigid(true);
+			land->UsesBoxCollision = false; // Disable box collision for this model
+			modelList.push_back(std::move(land));
+		}
+	}
+
 	
 	for (auto& mesh : modelList[1]->GetMeshList()) {
 		mesh->moveToTopOfBox = true;
@@ -311,26 +326,68 @@ bool Game::Initialize() {
 		10.0f, 0.05f, 10.0f,     10.0f, 10.0f,   0.0f, -1.0f, 0.0f
 	};
 
-	GLfloat verticesSprite[] = {
-		// positions									// texCoords
-		xDisplacement + xCenter - spriteWidth / 2, yTop,				0.0f, 0.0f,
-		xDisplacement + xCenter + spriteWidth / 2, yTop,				1.0f, 0.0f,
-		xDisplacement + xCenter + spriteWidth / 2, yTop - spriteHeight, 1.0f, 1.0f,
-		xDisplacement + xCenter - spriteWidth / 2, yTop - spriteHeight, 0.0f, 1.0f
+	GLfloat SpriteVertices[] = {
+		//   x                                       ,   y                ,  u   ,  v
+		// bottom‐left (on screen) → top of texture
+		mainWindow.getBufferWidth() - spriteWidth, 0.0f                   , 0.0f, 1.0f,
+		// bottom‐right         → top of texture
+		mainWindow.getBufferWidth(),              0.0f                   , 1.0f, 1.0f,
+		// top‐right            → bottom of texture
+		mainWindow.getBufferWidth(),              spriteHeight           , 1.0f, 0.0f,
+		// top‐left             → bottom of texture
+		mainWindow.getBufferWidth() - spriteWidth, spriteHeight           , 0.0f, 0.0f,
 	};
-	unsigned int indicesSprite[] = { 0, 1, 2, 2, 3, 0 };
+
+	const GLuint SpriteIndices[] = {
+		0, 1, 2,
+		2, 3, 0
+	};
+	// Define your sprite size
+	float spriteWidth = 50.0f;
+	float spriteHeight = 50.0f;
+
+	float centerX = mainWindow.getBufferWidth() / 2.0f;
+	float centerY = mainWindow.getBufferHeight() / 2.0f;
+
+	GLfloat SpriteVerticesCentered[] = {
+		// x                         y                          u     v
+		// Bottom-left
+		centerX - spriteWidth / 2,  centerY - spriteHeight / 2, 0.0f, 0.0f,
+		// Bottom-right
+		centerX + spriteWidth / 2,  centerY - spriteHeight / 2, 1.0f, 0.0f,
+		// Top-right
+		centerX + spriteWidth / 2,  centerY + spriteHeight / 2, 1.0f, 1.0f,
+		// Top-left
+		centerX - spriteWidth / 2,  centerY + spriteHeight / 2, 0.0f, 1.0f,
+	};
+
 
 	healthBar = Sprite(verticesSprite, indicesSprite, 16, 6);
 	healthBar.CreateSprite();
+	healthBar.SetTexture(&healthBarTexture);
 
-	healthHUD.Initialize(xCenter, yTop, 400.0f, 20.0f, xDisplacement);
-	healthHUD.SetTexture(&healthBarTexture);
+	handAnimationSprite = Sprite(SpriteVertices, indicesSprite, 16, 6);
+	//handAnimationSprite.SetFrameUVs(1, 5);
+	handAnimationSprite.SetTexture(&handAnimationTexture);
+	handAnimationSprite.CreateSprite();
+
+	handAnimation = Animation(handAnimationSprite, 2, 0.01f);
+
+	crosshairSprite = Sprite(SpriteVerticesCentered, indicesSprite, 16, 6);
+	crosshairSprite.SetTexture(&crosshairTexture);
+	crosshairSprite.CreateSprite();
+
+	for (int i = 0; i < 16; i += 4) {
+		std::cout << "Sprite Vertex " << i / 4 << ": ("
+			<< handAnimationSprite.mVertices[i] << ", " << handAnimationSprite.mVertices[i + 1] << ", "
+			<< handAnimationSprite.mVertices[i + 2] << ", " << handAnimationSprite.mVertices[i + 3] << ")\n";
+	}
 
 	std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
 	ramp->CreateMesh();
 	ramp->ID = "ramp";
 	ramp->UsesBoxCollision = false;
-	meshList.push_back(std::move(ramp));
+	//meshList.push_back(std::move(ramp));
 
 	CreateShaders(); // Make sure this creates RayShader first!
 	rayRenderer.Init(); // Now safe to initialize
@@ -368,17 +425,26 @@ bool Game::Initialize() {
 	skyBoxFaces.push_back("Skyboxes/Skybox/cupertin-lake_bk.tga");
 	skyBoxFaces.push_back("Skyboxes/Skybox/cupertin-lake_ft.tga");
 
-	skybox = Skybox(skyBoxFaces);
+	//skybox = Skybox(skyBoxFaces);
+	forestSkyboxTexture = Texture("Skyboxes/forest.png");
+	forestSkyboxTexture.LoadTexture();
+	forestSkybox = Skybox(forestSkyboxTexture.GetTextureID());
+	std::cout << forestSkyboxTexture.GetTextureID();
 
 	Assimp::Importer importer;
 	// loop until know closed
-	AudioPlayer player;
+	//AudioPlayer player;
 
-	if (!player.LoadMP3("audio/test.mp3")) {
+	//if (!player.LoadMP3("audio/test.mp3")) {
+	///	return -1;
+	//}
+
+	if (!gunAudioPlayer.LoadMP3("audio/gun.mp3")) {
+		std::cerr << "Failed to load gun audio." << std::endl;
 		return -1;
 	}
 
-	player.Play();
+	//player.Play();
 	std::cout << "Playing MP3..." << std::endl;
 
 	mainWindow.InitMotionBlurFBO(mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
@@ -503,15 +569,41 @@ void Game::Run() {
 			10.f, float(screenH - 30),
 			0.4f, glm::vec3(1.f), orthoProj
 		);
-		glEnable(GL_DEPTH_TEST);
-		debugBox.UseShader();
+		
+		fpsText.RenderText(
+			textShader,
+			std::string("Dog Health: ") + std::to_string(int(dogHealth)),
+			10.f, float(screenH - 60),
+			0.4f, glm::vec3(1.f), orthoProj
+		);
+
+		fpsText.RenderText(
+			textShader,
+			std::string("Player Health: ") + std::to_string(int(health)),
+			10.f, float(screenH - 90),
+			0.4f, glm::vec3(1.f), orthoProj
+		);
+
+		glm::mat4 camViewMatrix = camera.calculateViewMatrix();
 		for (auto& m : meshList)
-			DrawBoundingBox(m->box, debugBox, perspProj, camera.calculateViewMatrix());
-		for (auto& mdl : modelList)
-			DrawBoundingBox(mdl->GetBox(), debugBox, perspProj, camera.calculateViewMatrix());
-		healthBar.CreateSprite();
-		healthHUD.Render(hudShader, orthoProj);
-		rayRenderer.Render(perspProj, camera.calculateViewMatrix(), RayShader);
+			DrawBoundingBox(m->box, debugBox, perspProj, camViewMatrix);
+		//for (auto& mdl : modelList)
+		//	DrawBoundingBox(mdl->GetBox(), debugBox, perspProj, camViewMatrix);
+
+		//healthBar.CreateSprite();
+		//healthBar.Render(spriteShader, orthoProj);
+
+
+		
+		//handAnimationSprite.UpdateVertices(SpriteVertices, SpriteIndices);
+		//handAnimationSprite.CreateSprite();
+		//handAnimationSprite.Render(spriteShader, orthoProj);
+
+		handAnimation.Render(spriteShader, orthoProj);
+
+		crosshairSprite.Render(spriteShader, orthoProj);
+
+		rayRenderer.Render(perspProj, camViewMatrix, RayShader);
 
 		// ----- 8) End frame -----
 		glUseProgram(0);
@@ -521,44 +613,35 @@ void Game::Run() {
 	}
 }
 
-
-
 void Game::updateFirstFrame() {
+	// On first frame, validate shadow shader
 	if (firstFrame) {
 		directionalShadowShader.Validate();
-		for (auto& mesh : meshList) {
-			if (mesh->UsesBoxCollision)
-				mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-			else
-				mesh->UpdateTriangleList(); // Update triangle list for collision
-		}
-		for (auto& model : modelList) {
+	}
 
-			if (model->UsesBoxCollision)
-				model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-			else
-				model->UpdateTriangleList(); // Update triangle list for collision
-		}
-	}
-	else {
-		// Update Bounding Boxes or Triangles
-		for (auto& mesh : meshList) {
-			if (!mesh->rigid) {
-				if (mesh->UsesBoxCollision)
-					mesh->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-				else
-					mesh->UpdateTriangleList();
-			}
-		}
-		for (auto& model : modelList) {
-			if (!model->rigid) {
-				if (model->UsesBoxCollision)
-					model->CalculateModelSpaceBoundingBox(); // Calculate bounding box
-				else
-					model->UpdateTriangleList();
+	// Update bounding boxes for all meshes every frame
+	for (auto& mesh : meshList) {
+		mesh->CalculateModelSpaceBoundingBox();
+		// Triangle collision: update on first frame or for non-rigid meshes thereafter
+		if (!mesh->UsesBoxCollision) {
+			if (firstFrame || !mesh->rigid) {
+				mesh->UpdateTriangleList();
 			}
 		}
 	}
+
+	// Update bounding boxes for all models every frame
+	for (auto& model : modelList) {
+		model->CalculateModelSpaceBoundingBox();
+		// Triangle collision: update on first frame or for non-rigid models thereafter
+		if (!model->UsesBoxCollision) {
+			if (firstFrame || !model->rigid) {
+				model->UpdateTriangleList();
+			}
+		}
+	}
+
+	// Clear the firstFrame flag after initial setup
 	firstFrame = false;
 }
 
@@ -601,12 +684,14 @@ void Game::Update() {
 		modelList[0]->IsValid = false;
 		modelList[0]->ClearModel();
 	}
+	// Update Health Bar
 	currentWidth = (health / 100.0f) * spriteWidth; // Scale health bar width based on health percentage
 	rightX = centerX + currentWidth;
 
 	// Update right side of the quad only
-	healthBar.mVertices[4] = rightX;  // bottom-right x
-	healthBar.mVertices[8] = rightX;  // top-right x
+	healthBar.mVertices[4]  /* TR.x */ = rightX;
+	healthBar.mVertices[8]  /* BR.x */ = rightX;
+
 
 	// Call the Shadow Pass
 	DirectionalShadowPass(&mainLight);
@@ -617,6 +702,8 @@ void Game::Update() {
 	for (size_t i = 0; i < spotLightCount; i++) {
 		OmniShadowMapPass(&spotLights[i]);
 	}
+
+
 	
 }
 void Game::ProcessInput()
@@ -627,15 +714,7 @@ void Game::ProcessInput()
 	camera.keyControl(mainWindow.getKeys(), deltaTime);
 	static bool keyHeld = false;
 	if (glfwGetKey(mainWindow.getWindow(), GLFW_KEY_M) == GLFW_PRESS) {
-		
-		if (!keyHeld) {
-			debugDisplayMode = (debugDisplayMode + 1) % 3;
-			std::cout << "Debug display mode: " << debugDisplayMode << std::endl;
-			keyHeld = true;
-		}
-	}
-	else {
-		keyHeld = false;
+
 	}
 
 }
@@ -653,13 +732,13 @@ void Game::RenderScene() {
 		model->ResetModel(); // Reset model matrix
 	}
 	// ramp box
-	meshList[0]->translate(-2.0f, 4.5f, 9.0f);
-	meshList[0]->rotate(45, 0.0f, 0.0f, 1.0f);
-	meshList[0]->scale(10.0f, 2.0f, 1.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
-	tile.UseTexture();
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	meshList[0]->RenderMesh();
+	//meshList[0]->translate(-2.0f, 4.5f, 9.0f);
+	//meshList[0]->rotate(45, 0.0f, 0.0f, 1.0f);
+	//meshList[0]->scale(10.0f, 2.0f, 1.0f);
+	//glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(meshList[0]->GetModel()));
+	//tile.UseTexture();
+	//shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	//meshList[0]->RenderMesh();
 
 	Angle += 0.1f * deltaTime;
 	if (Angle > 360.0f) {
@@ -698,11 +777,30 @@ void Game::RenderScene() {
 		modelList[0]->RenderModel(uniformModel);
 	}
 
-	// ROOM
-	modelList[1]->scale(3.0f, 3.0f, 3.0f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(modelList[1]->model));
-	shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-	modelList[1]->RenderModel(uniformModel, false);
+	int columns = 2;
+	int rows = 2;
+	int base = 1; // skip modelList[0]
+
+	for (int row = 0; row < rows; ++row) {
+		for (int col = 0; col < columns; ++col) {
+			int idx = base + row * columns + col;
+			if ((size_t)idx >= modelList.size()) break;  // safety check
+
+			auto& box = modelList[idx];
+
+			// reset transform every frame
+			box->model = glm::mat4(1.0f);
+
+			// scale & position in a grid
+			box->scale(3.0f, 3.0f, 3.0f);
+			box->translate(col * 2.0f, 0.0f, row * 2.0f);
+
+			// draw
+			glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(box->model));
+			shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+			box->RenderModel(uniformModel, false);
+		}
+	}
 
 	glBindVertexArray(0);
 
@@ -726,6 +824,9 @@ void Game::CreateShaders() {
 
 	hudShader = Shader();
 	hudShader.CreateFromFiles("Shaders/hud_vert.glsl", "Shaders/hud_frag.glsl");
+
+	spriteShader = Shader();
+	spriteShader.CreateFromFiles("Shaders/hud_vert.glsl", "Shaders/hud_frag.glsl");
 
 	RayShader = Shader();
 	RayShader.CreateFromFiles("Shaders/debug_line_vert.glsl", "Shaders/debug_line_frag.glsl");
@@ -786,7 +887,8 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	skybox.DrawSkybox(viewMatrix, projectionMatrix);
+	//skybox.DrawSkybox(viewMatrix, projectionMatrix);
+	forestSkybox.DrawSkybox(viewMatrix, projectionMatrix);
 
 	shaderList[0]->UseShader();
 	uniformModel = shaderList[0]->GetModelLocation();
@@ -838,6 +940,7 @@ void Game::DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::ma
 	static bool initialized = false;
 
 	if (!initialized) {
+
 		// Only set up once
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
@@ -875,11 +978,13 @@ void Game::DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::ma
 		{box.min.x, box.max.y, box.max.z}
 	};
 
+
 	// Upload corners
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(corners), corners);
 
 	// Bind shader
+	glDisable(GL_DEPTH_TEST);
 	shader.UseShader();
 	glUniformMatrix4fv(shader.GetProjectionLocation(), 1, GL_FALSE, glm::value_ptr(projection));
 	glUniformMatrix4fv(shader.GetViewLocation(), 1, GL_FALSE, glm::value_ptr(view));
@@ -888,15 +993,25 @@ void Game::DrawBoundingBox(const BoundingBox& box, Shader& shader, const glm::ma
 	glBindVertexArray(VAO);
 	glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
+
+	glEnable(GL_DEPTH_TEST);
 }
 void Game::Shoot()
 {
-	// SHOOT
-	if (mainWindow.getLeftClicked()) {
+	// Update cooldown timer
+	if (shootCooldown > 0.0f) {
+		shootCooldown -= deltaTime;
+	}
+
+	if (mainWindow.getLeftClicked() && shootCooldown <= 0.0f) {
+		shootCooldown = shootCooldownDuration; // Reset cooldown
+
+		handAnimation.Update(deltaTime); // Update hand animation on click
+		gunAudioPlayer.Play();           // Play gun sound
 
 		glm::vec3 rayOrigin = camera.getCameraPostion();
 		glm::vec3 rayDirection = camera.getCameraDirection(); // normalized
-		float maxDistance = 4.0f;
+		float maxDistance = 100.0f;
 
 		rayRenderer.UpdateRay(rayOrigin, rayDirection, maxDistance);
 
@@ -910,13 +1025,17 @@ void Game::Shoot()
 				}
 			}
 		}
-		// Ray hit test...
-		if (RayIntersectsAABB(rayOrigin, rayDirection, modelList[0]->GetBox(), maxDistance)){
-			dogHealth -= 100.0f;
+
+		// Damage dog model if hit
+		if (RayIntersectsAABB(rayOrigin, rayDirection, modelList[0]->GetBox(), maxDistance) && dogHealth > 0) {
+			dogHealth -= 1.0f;
 		}
 	}
-
+	else if (!mainWindow.getLeftClicked()) {
+		handAnimation.Reset(); // Reset hand animation when not clicking
+	}
 }
+
 void Game::CalcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloat* vertices, unsigned int verticeCount, unsigned int vLength, unsigned int normalOffset) {
 	for (size_t i = 0; i < indicieCount; i += 3) {
 		unsigned int in0 = indices[i] * vLength;

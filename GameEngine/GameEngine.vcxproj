@@ -163,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\RayTracingOneWeekendApplication\RayTracingOneWeekendApplication\stb_image.h" />
+    <ClInclude Include="AnimationSprite.h" />
     <ClInclude Include="AudioPlayer.h" />
     <ClInclude Include="BoundingBox.h" />
     <ClInclude Include="Camera.h" />
@@ -170,6 +171,7 @@
     <ClInclude Include="CommonValues.h" />
     <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="Enemy.h" />
+    <ClInclude Include="Frame.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="HUD.h" />
     <ClInclude Include="Light.h" />

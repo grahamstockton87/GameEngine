@@ -10,6 +10,9 @@ class Texture {
 public:
 	Texture();
 	Texture(std::string fileLoc);
+
+	Texture(const Texture& other) = default; // Disable copy constructor
+
 	
 	bool LoadTexture();
 	bool LoadTextureA();
@@ -17,10 +20,12 @@ public:
 	void UseTexture();
 	void UseTexture(GLenum textureUnit);
 	void ClearTexture();
+	GLuint GetTextureID() const { return textureID; }
 
 	~Texture();
 private:
 	GLuint textureID;
+
 	int width, height, bitDepth;
 
 	std::string fileLocation;

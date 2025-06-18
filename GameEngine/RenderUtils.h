@@ -13,5 +13,6 @@ namespace RenderUtils{
 
     void DrawFullScreenQuad(Shader& shader, GLuint tex);
     void DrawFullScreenQuad(Shader& shader);
+    void DrawCube();
 }
 

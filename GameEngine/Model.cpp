@@ -6,20 +6,26 @@ void Model::LoadModel(const std::string fileName)
 {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(fileName,
-		aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+		aiProcess_Triangulate |
+		aiProcess_FlipUVs |
+		aiProcess_LimitBoneWeights |
+		aiProcess_JoinIdenticalVertices);
 
 	if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) {
 		printf("ERROR: Failed to load model %s: %s\n", fileName.c_str(), importer.GetErrorString());
 		return;
 	}
-
-	printf("SUCCESS: Loaded model %s\n", fileName.c_str());
-	printf("Scene has %d meshes and %d materials\n", scene->mNumMeshes, scene->mNumMaterials);
+	if (!scene || !scene->HasAnimations()) {
+		std::cerr << "No animation found!" << std::endl;
+		return;
+	}
+	//printf("SUCCESS: Loaded model %s\n", fileName.c_str());
+	//printf("Scene has %d meshes and %d materials\n", scene->mNumMeshes, scene->mNumMaterials);
 
 	LoadNode(scene->mRootNode, scene);
 	LoadMaterials(scene);
 
-	printf("Model loading complete. Mesh count: %zu\n", meshList.size());
+	//printf("Model loading complete. Mesh count: %zu\n", meshList.size());
 
 	for (auto& mesh : meshList) {
 		mesh->rigid = rigid;

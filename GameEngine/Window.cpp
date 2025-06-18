@@ -13,6 +13,7 @@ Window::Window() {
 	yChange = 0.0f;
 
 	leftMouseClicked = false;
+
 }
 
 Window::Window(GLint windowWidth, GLint windowHeight) {

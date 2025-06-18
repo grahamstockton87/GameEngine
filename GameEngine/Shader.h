@@ -81,6 +81,10 @@ public:
 	void SetUniform(const std::string& name, const glm::vec2& vec);
 	void SetUniform(const std::string& name, const glm::vec3& vec);
 
+	void setInt(const std::string& name, int value);
+
+	void setMat4(const std::string& name, const glm::mat4& matrix);
+
 	~Shader();
 
 private:

@@ -77,15 +77,13 @@ std::string Shader::ReadFile(const char* fileLocation)
 void Shader::CompileShader(const char* vertexCode, const char* fragmentCode)
 {
 	if (!vertexCode || !fragmentCode) {
-		printf("Null shader code passed to CompileShader!\n");
+		std::cerr << "[Shader::CompileShader] ERROR: Null shader code provided.\n";
 		return;
 	}
 
-
 	shaderID = glCreateProgram();
-
-	if (!shaderID) {
-		printf("Error creating shader program!\n");
+	if (shaderID == 0) {
+		std::cerr << "[Shader::CompileShader] ERROR: Failed to create shader program.\n";
 		return;
 	}
 
@@ -94,6 +92,7 @@ void Shader::CompileShader(const char* vertexCode, const char* fragmentCode)
 
 	CompileProgram();
 }
+
 
 
 void Shader::CompileShader(const char* vertexCode, const char* geometryCode, const char* fragmentCode)
@@ -166,12 +165,12 @@ GLuint Shader::GetFarPlaneLocation()
 }
 GLuint Shader::GetTextColorLocation()
 {
-    return uniformTextColor;
+	return uniformTextColor;
 }
 
 GLuint Shader::GetTextProjectionLocation()
 {
-    return uniformTextProjection;
+	return uniformTextProjection;
 }
 
 GLuint Shader::GetUniformSpriteTextureLocation()
@@ -516,6 +515,17 @@ void Shader::SetUniform(const std::string& name, const glm::vec3& vec)  {
 	GLint loc = glGetUniformLocation(shaderID, name.c_str());
 	glUniform3fv(loc, 1, glm::value_ptr(vec));
 }
+
+void Shader::setInt(const std::string& name, int value)
+{
+	glUniform1i(glGetUniformLocation(shaderID, name.c_str()), value);
+}
+void Shader::setMat4(const std::string& name, const glm::mat4& matrix)
+{
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
+
 
 // Set a mat4 uniform
 void Shader::SetUniform(const std::string& name, const glm::mat4& mat)  {

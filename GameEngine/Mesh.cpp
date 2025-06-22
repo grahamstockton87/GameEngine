@@ -49,6 +49,10 @@ Mesh::Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices,
 	CalculateModelSpaceBoundingBox();
 
 }
+Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices)
+{
+
+}
 Mesh::Mesh(const Mesh& other)
 {
 	mNumOfVertices = other.mNumOfVertices;
@@ -62,7 +66,7 @@ Mesh::Mesh(const Mesh& other)
 
 	model = other.model;
 
-	triangleList = ExtractTrianglesFromMesh();
+	//triangleList = ExtractTrianglesFromMesh();
 
 	CalculateModelSpaceBoundingBox();
 }
@@ -258,50 +262,38 @@ Mesh::~Mesh()
 }
 
 std::vector<Triangle> Mesh::ExtractTrianglesFromMesh() {
-	std::vector<Triangle> triangles;
+	std::vector<Triangle> tris;
+	if (!mVertices || !mIndices || mNumOfVertices == 0 || mNumOfIndices < 3)
+		return tris;
 
-	if (mNumOfVertices == 0 || mNumOfIndices == 0 || !mVertices || !mIndices)
-		return triangles;
-
-	constexpr unsigned int floatsPerVertex = 8;
-	const unsigned int totalFloatCount = mNumOfVertices * floatsPerVertex;
+	const unsigned int floatsPerVertex = hasAnimation ? 16 : 8;
+	const unsigned int floatCount = mNumOfVertices * floatsPerVertex;
 	const unsigned int vertexCount = mNumOfVertices;
-	const glm::mat4 modelMatrix = model;
-
-	triangles.reserve(mNumOfIndices / 3); // Reserve space for efficiency
 
 	for (unsigned int i = 0; i + 2 < mNumOfIndices; i += 3) {
-		const unsigned int i0 = mIndices[i];
-		const unsigned int i1 = mIndices[i + 1];
-		const unsigned int i2 = mIndices[i + 2];
+		unsigned i0 = mIndices[i], i1 = mIndices[i + 1], i2 = mIndices[i + 2];
+		if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) continue;
 
-		if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
-			std::cerr << "[Mesh] Invalid vertex index at triangle " << i / 3
-				<< ": " << i0 << ", " << i1 << ", " << i2 << "\n";
+		unsigned off0 = i0 * floatsPerVertex,
+			off1 = i1 * floatsPerVertex,
+			off2 = i2 * floatsPerVertex;
+
+		// guard against any stray overflow
+		if (off0 + 2 >= floatCount ||
+			off1 + 2 >= floatCount ||
+			off2 + 2 >= floatCount)
 			continue;
-		}
 
-		const unsigned int offset0 = i0 * floatsPerVertex;
-		const unsigned int offset1 = i1 * floatsPerVertex;
-		const unsigned int offset2 = i2 * floatsPerVertex;
+		glm::vec4 v0{ mVertices[off0],   mVertices[off0 + 1],   mVertices[off0 + 2],   1.0f };
+		glm::vec4 v1{ mVertices[off1],   mVertices[off1 + 1],   mVertices[off1 + 2],   1.0f };
+		glm::vec4 v2{ mVertices[off2],   mVertices[off2 + 1],   mVertices[off2 + 2],   1.0f };
 
-		if (offset0 + 2 >= totalFloatCount || offset1 + 2 >= totalFloatCount || offset2 + 2 >= totalFloatCount) {
-			std::cerr << "[Mesh] Vertex buffer overflow risk at triangle " << i / 3 << "\n";
-			continue;
-		}
-
-		const glm::vec4 local0(mVertices[offset0], mVertices[offset0 + 1], mVertices[offset0 + 2], 1.0f);
-		const glm::vec4 local1(mVertices[offset1], mVertices[offset1 + 1], mVertices[offset1 + 2], 1.0f);
-		const glm::vec4 local2(mVertices[offset2], mVertices[offset2 + 1], mVertices[offset2 + 2], 1.0f);
-
-		Triangle tri;
-		tri.v0 = glm::vec3(modelMatrix * local0);
-		tri.v1 = glm::vec3(modelMatrix * local1);
-		tri.v2 = glm::vec3(modelMatrix * local2);
-
-		triangles.push_back(tri);
+		tris.push_back({ glm::vec3(model * v0),
+						glm::vec3(model * v1),
+						glm::vec3(model * v2) });
 	}
 
-	return triangles;
+	return tris;
 }
+
 

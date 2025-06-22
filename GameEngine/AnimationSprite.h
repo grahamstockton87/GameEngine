@@ -1,11 +1,11 @@
 ﻿#pragma once
 #include "Sprite.h"
 
-class Animation {
+class AnimationSprite {
 public:
 	// frameCount: total frames in the sheet
 	// frameDuration: seconds each frame stays on
-	Animation()
+	AnimationSprite()
 		: mSprite()            // default‐constructed sprite
 		, mFrameCount(0)
 		, mFrameDuration(0.0f)
@@ -14,7 +14,7 @@ public:
 	{
 		// nothing else to do
 	} // default constructor
-	Animation(Sprite& sprite, int frameCount, float frameDuration)
+	AnimationSprite(Sprite& sprite, int frameCount, float frameDuration)
 		: mSprite(sprite)
 		, mFrameCount(frameCount)
 		, mFrameDuration(frameDuration)
@@ -22,7 +22,7 @@ public:
 		, mElapsed(0.0f)
 	{
 	}
-	Animation& operator=(const Animation& other) {
+	AnimationSprite& operator=(const AnimationSprite& other) {
 		if (this == &other)
 			return *this;
 

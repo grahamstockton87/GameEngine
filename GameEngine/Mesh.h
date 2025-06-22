@@ -15,11 +15,32 @@
 
 #include "BoundingBox.h"
 
+struct Vertex {
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 texCoord;
+
+	int boneIDs[4] = { 0 };
+	float weights[4] = { 0.0f };
+
+	void AddBoneData(int boneID, float weight) {
+		for (int i = 0; i < 4; ++i) {
+			if (weights[i] == 0.0f) {
+				boneIDs[i] = boneID;
+				weights[i] = weight;
+				return;
+			}
+		}
+		// Warn if more than 4 bones per vertex
+	}
+};
+
 class Mesh {
 
 public:
 	Mesh();
 	Mesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices, unsigned int numOfIndices);
+	Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
 	Mesh(const Mesh& other);
 
 	void CreateMesh();
@@ -70,6 +91,11 @@ public:
 
 	bool rigid = true;
 
+	std::vector<Vertex> vertexData;
+	std::vector<unsigned int> indexData;
+
+	bool hasAnimation = false;
+
 	~Mesh();
 private:
 	GLuint VAO, VBO, IBO;
@@ -79,5 +105,7 @@ private:
 	const float toRadians = 3.14159265f / 180.0f;
 
 	std::vector<Triangle> ExtractTrianglesFromMesh();
+
+
 };
 

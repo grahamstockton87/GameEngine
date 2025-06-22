@@ -14,6 +14,10 @@
 #include <gtx/string_cast.hpp>
 #include "Material.h"
 #include "CollisionUtils.h"
+#include <unordered_map>
+
+#include "Animation.h"
+#include "Shader.h"
 
 class Model {
 public:
@@ -52,6 +56,7 @@ public:
 	Model& operator=(Model&&) noexcept = default;
 
 	void LoadModel(const std::string fileName);
+	void LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices);
 	void RenderModel(GLuint uniformModel);
 	void RenderModel(GLuint uniformModelLocation, bool OverrideTexture);
 	void ClearModel();
@@ -96,6 +101,17 @@ private:
 	std::vector<std::unique_ptr<Mesh>> meshList;
 	std::vector<std::unique_ptr<Texture>> textureList;
 	std::vector<unsigned int> meshToTex;
+
+	struct BoneInfo {
+		glm::mat4 offsetMatrix;  // from aiBone
+		glm::mat4 finalTransformation; // for shader
+	};
+	std::vector<BoneInfo> boneInfo;
+	std::unique_ptr<Animation> animation;
+	std::unordered_map<std::string, int> boneMapping;
+	int boneCount = 0;
+	bool hasAnimation = false;
+	std::unique_ptr<Animator> animator;
 
 };
 

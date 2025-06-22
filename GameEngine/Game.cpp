@@ -371,17 +371,11 @@ bool Game::Initialize() {
 	handAnimationSprite.SetTexture(&handAnimationTexture);
 	handAnimationSprite.CreateSprite();
 
-	handAnimation = Animation(handAnimationSprite, 2, 0.01f);
+	handAnimation = AnimationSprite(handAnimationSprite, 2, 0.01f);
 
 	crosshairSprite = Sprite(SpriteVerticesCentered, indicesSprite, 16, 6);
 	crosshairSprite.SetTexture(&crosshairTexture);
 	crosshairSprite.CreateSprite();
-
-	for (int i = 0; i < 16; i += 4) {
-		std::cout << "Sprite Vertex " << i / 4 << ": ("
-			<< handAnimationSprite.mVertices[i] << ", " << handAnimationSprite.mVertices[i + 1] << ", "
-			<< handAnimationSprite.mVertices[i + 2] << ", " << handAnimationSprite.mVertices[i + 3] << ")\n";
-	}
 
 	std::unique_ptr<Mesh> ramp = std::make_unique<Mesh>(boxVertices, boxIndices, 192, 36);
 	ramp->CreateMesh();
@@ -774,7 +768,7 @@ void Game::RenderScene() {
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(modelList[0]->model));
 
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		modelList[0]->RenderModel(uniformModel);
+		modelList[0]->RenderModel(uniformModel, false);
 	}
 
 	int columns = 2;

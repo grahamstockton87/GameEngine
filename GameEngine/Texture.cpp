@@ -1,5 +1,5 @@
 #include "Texture.h"
-
+#include <iostream>
 
 Texture::Texture()
 {
@@ -44,9 +44,9 @@ bool Texture::LoadTextureA()
 }
 bool Texture::LoadTexture()
 {
-	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 3);
+	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 0);
 	if (!texData) {
-		printf("Failed to find: %s\n", fileLocation);
+		std::cerr << "[Texture::LoadTexture] Failed to load texture: " << fileLocation << std::endl;
 		return false;
 	}
 	glGenTextures(1, &textureID);
@@ -117,7 +117,10 @@ Skybox::Skybox(std::vector<std::string> faceLocations) {
 			return;
 		}
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
+		stbi_image_free(texData);
 	}
+	
+
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -285,35 +288,45 @@ void Skybox::ConvertEquirectangularToCubeMap()
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// Debug: confirm that PNG was bound
-	GLint bound;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
 }
 
-void Skybox::DrawSkybox(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
+void Skybox::DrawSkybox(glm::mat4 viewMatrix,
+	glm::mat4 projectionMatrix)
 {
+	// 1) Remove camera translation
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 
+	// 2) Make skybox draw behind everything
 	glDepthMask(GL_FALSE);
+	glDepthFunc(GL_LEQUAL);
 
+	// 3) Activate & configure shader
 	skyShader->UseShader();
+	// MUST set these *before* drawing:
+	glUniformMatrix4fv(uniformProjection,
+		1, GL_FALSE,
+		glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(uniformView,
+		1, GL_FALSE,
+		glm::value_ptr(viewMatrix));
+	// tell GLSL “skybox” is on texture unit 0
+	skyShader->setInt("skybox", 0);
 
-
-	RenderUtils::DrawCube(); // make sure this draws a real cube
-
-	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-
+	// 4) Bind our cube VAO & cubemap
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
-	skyShader->Validate();
-
+	// 5) Draw
+	RenderUtils::DrawCube();
 	skyMesh->RenderMesh();
+	// or, if you’re using a simple cube helper:
+	
 
+	// 6) Restore state
+	glDepthFunc(GL_LESS);
 	glDepthMask(GL_TRUE);
 }
+
 
 Skybox::~Skybox()
 {

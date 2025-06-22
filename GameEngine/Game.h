@@ -161,7 +161,7 @@ private:
 	// GUN variables
 	Sprite handAnimationSprite;
 	Texture handAnimationTexture;
-	Animation handAnimation;
+	AnimationSprite handAnimation;
 	GLfloat spriteWidth = 400.0f; // Width of the sprite
 	GLfloat spriteHeight = 400.0f; // Height of the sprite
 	AudioPlayer gunAudioPlayer;

@@ -15,23 +15,82 @@ void Model::LoadModel(const std::string fileName)
 		printf("ERROR: Failed to load model %s: %s\n", fileName.c_str(), importer.GetErrorString());
 		return;
 	}
-	if (!scene || !scene->HasAnimations()) {
-		std::cerr << "No animation found!" << std::endl;
-		return;
+
+	if (scene->HasAnimations()) {
+		hasAnimation = true;
+
+		// Load animation into our custom class
+		animation = std::make_unique<Animation>(scene->mAnimations[0], scene);
+
+		// Integrate boneInfo from the animation into model
+		for (const auto& bone : animation->bones) {
+			const std::string& boneName = bone.name;
+			int boneID = bone.id;
+
+			if (boneMapping.find(boneName) == boneMapping.end()) {
+				boneMapping[boneName] = boneID;
+
+				if ((int)boneInfo.size() <= boneID)
+					boneInfo.resize(boneID + 1);
+
+				boneInfo[boneID].offsetMatrix = glm::mat4(1.0f); // You can set real offset in LoadMeshBones
+			}
+		}
 	}
-	//printf("SUCCESS: Loaded model %s\n", fileName.c_str());
-	//printf("Scene has %d meshes and %d materials\n", scene->mNumMeshes, scene->mNumMaterials);
 
 	LoadNode(scene->mRootNode, scene);
 	LoadMaterials(scene);
 
-	//printf("Model loading complete. Mesh count: %zu\n", meshList.size());
-
 	for (auto& mesh : meshList) {
 		mesh->rigid = rigid;
+		mesh->hasAnimation = hasAnimation;
 	}
-	
+
+	if (scene->HasAnimations()) {
+		hasAnimation = true;
+		animation = std::make_unique<Animation>(scene->mAnimations[0], scene);
+		animator = std::make_unique<Animator>(animation.get());
+	}
+
+
 }
+
+
+void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
+{
+	for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
+		aiBone* aiBone = mesh->mBones[i];
+		std::string boneName(aiBone->mName.C_Str());
+
+		// If this bone isn't in our mapping yet, assign it an ID
+		int boneID = 0;
+		if (boneMapping.find(boneName) == boneMapping.end()) {
+			boneID = boneCount++;
+			boneMapping[boneName] = boneID;
+
+			if (boneID >= boneInfo.size())
+				boneInfo.resize(boneID + 1);
+
+			// Convert Assimp offset matrix to glm
+			boneInfo[boneID].offsetMatrix = glm::transpose(glm::make_mat4(&aiBone->mOffsetMatrix.a1));
+		}
+		else {
+			boneID = boneMapping[boneName];
+		}
+
+		// Loop through bone weights and assign them to the vertex
+		for (unsigned int j = 0; j < aiBone->mNumWeights; ++j) {
+			unsigned int vertexID = aiBone->mWeights[j].mVertexId;
+			float weight = aiBone->mWeights[j].mWeight;
+
+			if (vertexID < vertices.size()) {
+				vertices[vertexID].AddBoneData(boneID, weight);
+			}
+		}
+	}
+}
+
+
 
 void Model::RenderModel(GLuint uniformModelLocation)
 {
@@ -116,6 +175,7 @@ void Model::LoadMesh(aiMesh* mesh, const aiScene* scene)
 	meshToTex.push_back(mesh->mMaterialIndex);
 }
 
+
 void Model::LoadMaterials(const aiScene* scene)
 {
 	textureList.resize(scene->mNumMaterials);
@@ -144,6 +204,7 @@ void Model::LoadMaterials(const aiScene* scene)
 		}
 	}
 }
+
 
 void Model::translate(GLfloat x, GLfloat y, GLfloat z)
 {

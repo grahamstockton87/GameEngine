@@ -57,8 +57,8 @@ public:
 
 	void LoadModel(const std::string fileName);
 	void LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices);
-	void RenderModel(GLuint uniformModel);
-	void RenderModel(GLuint uniformModelLocation, bool OverrideTexture);
+	void RenderModel();
+	void RenderModel(Texture* tex);
 	void ClearModel();
 	void ResetModel();
 	void transformBoundingBox();

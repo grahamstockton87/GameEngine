@@ -95,6 +95,9 @@ void Model::LoadMaterials(const aiScene* scene)
 			defaultTex->LoadTextureA();
 			specularMapList[i] = std::move(defaultTex);
 		}
+		// Create Material List
+		auto mat = std::make_unique<Material>();
+		mat->SetSpecularMap(specularMapList[i].get());
 	}
 }
 
@@ -134,8 +137,9 @@ void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
 
 
 
-void Model::RenderModel(GLuint uniformModelLocation)
+void Model::RenderModel()
 {
+	if (meshList.empty()) return;
 	for (size_t i = 0; i < meshList.size(); i++) {
 		unsigned int materialIndex = meshToTex[i];
 		if (materialIndex < textureList.size() && textureList[materialIndex]) {
@@ -144,15 +148,10 @@ void Model::RenderModel(GLuint uniformModelLocation)
 		meshList[i]->RenderMesh();
 	}
 }
-void Model::RenderModel(GLuint uniformModelLocation, bool OverrideTexture)
+void Model::RenderModel(Texture* tex)
 {
+	tex->UseTexture();
 	for (size_t i = 0; i < meshList.size(); i++) {
-		if (!OverrideTexture) {
-			unsigned int materialIndex = meshToTex[i];
-			if (materialIndex < textureList.size() && textureList[materialIndex]) {
-				textureList[materialIndex]->UseTexture(); // Default texture
-			}
-		}
 		meshList[i]->RenderMesh();
 	}
 }

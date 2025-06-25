@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GL/glew.h>
+#include "Texture.h"
 
 class Material {
 public:
@@ -14,5 +15,6 @@ public:
 private:
 	GLfloat specularIntensity;
 	GLfloat shininess;
+	Texture* specularMap;
 };
 

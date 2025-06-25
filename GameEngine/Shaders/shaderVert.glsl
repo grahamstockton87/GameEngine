@@ -4,6 +4,8 @@
 layout (location = 0) in vec3 pos;    // Vertex position
 layout (location = 1) in vec2 tex;    // Texture coordinates
 layout (location = 2) in vec3 norm;   // Normal
+layout (location = 3) in ivec4 boneIDs;
+layout (location = 4) in vec4 weights;
 
 // Output data
 out vec4 vCol;        
@@ -11,6 +13,7 @@ out vec2 TexCoord;
 out vec3 Normal;
 out vec3 FragPos;
 out vec4 DirectionalLightSpacePos;
+uniform mat4 finalBones[100];
 
 // Uniforms for transformations
 uniform mat4 model;        
@@ -19,6 +22,13 @@ uniform mat4 view;
 uniform mat4 directionalLightSpaceTransform;
 
 void main() {
+
+     mat4 boneTransform = 
+        weights.x * finalBones[boneIDs.x] +
+        weights.y * finalBones[boneIDs.y] +
+        weights.z * finalBones[boneIDs.z] +
+        weights.w * finalBones[boneIDs.w];
+
     // Transform vertex position
     gl_Position = projection * view * model * vec4(pos, 1.0);
     DirectionalLightSpacePos = directionalLightSpaceTransform * model * vec4(pos, 1.0);

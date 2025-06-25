@@ -66,7 +66,7 @@ private:
 	GLfloat fov;
 
 	float sprintTimer = 0.0f;              // Tracks how long sprinting has been active
-	const float maxSprintDuration = 5.0f;  // Max duration player can sprint
+	const float maxSprintDuration = 100.0f;  // Max duration player can sprint
 	float sprintCooldownTimer = 0.0f;      // Tracks cooldown after sprinting ends
 	const float sprintCooldownDuration = 10.0f; // Cooldown duration before sprint is re-enabled
 	bool isSprinting = false;              // Sprint state

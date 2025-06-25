@@ -97,7 +97,10 @@ private:
 	unsigned int pointLightCount = 0;
 	unsigned int spotLightCount = 0;
 
-	GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0, uniformSpecularIntensity = 0, uniformShininess = 0, uniformDirection = 0, uniformDiffuseIntensity = 0, uniformOmniLightPos = 0, uniformFarPlane = 0;
+	GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0, 
+		uniformSpecularIntensity = 0, uniformShininess = 0, uniformSpecularMap = 0, uniformUseSpecularMap = 0, 
+		uniformReflectivity = 0, uniformSkyBox = 0, uniformUseReflectivity = 0,
+		uniformDirection = 0, uniformDiffuseIntensity = 0, uniformOmniLightPos = 0, uniformFarPlane = 0;
 
 	Shader directionalShadowShader;
 	Shader omniShadowShader;
@@ -139,6 +142,7 @@ private:
 
 	Material shinyMaterial;
 	Material dullMaterial;
+	Material reflectiveMaterial;
 
 	std::unique_ptr<Model> dog;
 	std::unique_ptr<Model> land;

@@ -57,7 +57,7 @@ public:
 
 	void LoadModel(const std::string fileName);
 	void LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices);
-	void RenderModel();
+	void RenderModel(GLuint specularMapLocation, GLuint usesSpecularMap, GLuint reflectivityLocation, GLuint skyboxLocation, GLuint usesReflectionsLocation);
 	void RenderModel(Texture* tex);
 	void ClearModel();
 	void ResetModel();
@@ -101,6 +101,7 @@ private:
 	std::vector<std::unique_ptr<Mesh>> meshList;
 	std::vector<std::unique_ptr<Texture>> textureList;
 	std::vector<std::unique_ptr<Texture>> specularMapList;
+	std::vector<std::unique_ptr<Material>> materialList;
 	std::vector<unsigned int> meshToTex;
 
 	struct BoneInfo {

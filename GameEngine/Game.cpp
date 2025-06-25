@@ -767,7 +767,7 @@ void Game::RenderScene() {
 
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(modelList[0]->model));
 
-		modelList[0]->RenderModel();
+		modelList[0]->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformSkyBox, uniformUseReflectivity);
 	}
 
 	int columns = 2;
@@ -791,7 +791,7 @@ void Game::RenderScene() {
 			// draw
 			glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(box->model));
 			shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-			box->RenderModel();
+			box->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformSkyBox, uniformUseReflectivity);
 		}
 	}
 

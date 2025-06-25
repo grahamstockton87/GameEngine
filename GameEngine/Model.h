@@ -100,6 +100,7 @@ private:
 
 	std::vector<std::unique_ptr<Mesh>> meshList;
 	std::vector<std::unique_ptr<Texture>> textureList;
+	std::vector<std::unique_ptr<Texture>> specularMapList;
 	std::vector<unsigned int> meshToTex;
 
 	struct BoneInfo {

@@ -1129,11 +1129,4 @@ void Game::GroundPlayer() {
 		// 4) apply tangential movement
 		camera.position += slideDelta;
 	}
-
-
-
-
-
-
-
 }

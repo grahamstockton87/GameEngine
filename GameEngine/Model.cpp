@@ -54,7 +54,49 @@ void Model::LoadModel(const std::string fileName)
 
 
 }
+void Model::LoadMaterials(const aiScene* scene)
+{
+	textureList.resize(scene->mNumMaterials);
+	specularMapList.resize(scene->mNumMaterials);
 
+	for (size_t i = 0; i < scene->mNumMaterials; i++) {
+		aiMaterial* material = scene->mMaterials[i];
+		textureList[i] = nullptr;
+
+		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
+			aiString path;
+			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
+				std::string texPath = "Textures/" + std::string(path.C_Str());
+				auto texture = std::make_unique<Texture>(texPath);
+				if (!texture->LoadTexture()) {
+					texture->LoadTextureA();
+				}
+				textureList[i] = std::move(texture);
+			}
+		}
+		if (!textureList[i]) {
+			auto defaultTex = std::make_unique<Texture>("Textures/plain.png");
+			defaultTex->LoadTextureA();
+			textureList[i] = std::move(defaultTex);
+		}
+		if (material->GetTextureCount(aiTextureType_SPECULAR)) {
+			aiString path;
+			if (material->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {
+				std::string texPath = "Textures/" + std::string(path.C_Str());
+				auto texture = std::make_unique<Texture>(texPath);
+				if (!texture->LoadTexture()) {
+					texture->LoadTextureA();
+				}
+				specularMapList[i] = std::move(texture);
+			}
+		}
+		if (!specularMapList[i]) {
+			auto defaultTex = std::make_unique<Texture>("Textures/plain.png");
+			defaultTex->LoadTextureA();
+			specularMapList[i] = std::move(defaultTex);
+		}
+	}
+}
 
 void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
 {
@@ -176,34 +218,7 @@ void Model::LoadMesh(aiMesh* mesh, const aiScene* scene)
 }
 
 
-void Model::LoadMaterials(const aiScene* scene)
-{
-	textureList.resize(scene->mNumMaterials);
 
-	for (size_t i = 0; i < scene->mNumMaterials; i++) {
-		aiMaterial* material = scene->mMaterials[i];
-		textureList[i] = nullptr;
-
-		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
-			aiString path;
-			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-				std::string texPath = "Textures/" + std::string(path.C_Str());
-				auto texture = std::make_unique<Texture>(texPath);
-				if (!texture->LoadTexture()) {
-					texture = std::make_unique<Texture>("Textures/plain.png");
-					texture->LoadTextureA();
-				}
-				textureList[i] = std::move(texture);
-			}
-		}
-
-		if (!textureList[i]) {
-			auto defaultTex = std::make_unique<Texture>("Textures/plain.png");
-			defaultTex->LoadTextureA();
-			textureList[i] = std::move(defaultTex);
-		}
-	}
-}
 
 
 void Model::translate(GLfloat x, GLfloat y, GLfloat z)

@@ -890,6 +890,11 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	uniformEyePosition = shaderList[0]->GetEyePositionLocation();
 	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
 	uniformShininess = shaderList[0]->GetShininessLocation();
+	uniformSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "specularMap");
+	uniformUseSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "useSpecularMap");
+	uniformReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "reflectivity");
+	uniformSkyBox = glGetUniformLocation(shaderList[0]->GetShaderID(), "skybox");
+	uniformUseReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "useReflectivity");
 
 	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));

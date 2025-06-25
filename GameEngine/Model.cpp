@@ -54,54 +54,63 @@ void Model::LoadModel(const std::string fileName)
 
 
 }
-void Model::LoadMaterials(const aiScene* scene)  
-{  
-    textureList.resize(scene->mNumMaterials);  
-    specularMapList.resize(scene->mNumMaterials);  
-    materialList.resize(scene->mNumMaterials);  
+void Model::LoadMaterials(const aiScene* scene)
+{
+	size_t M = scene->mNumMaterials;
+	textureList.resize(M);
+	specularMapList.resize(M);
+	materialList.resize(M);
 
-    for (size_t i = 0; i < scene->mNumMaterials; i++) {  
-        aiMaterial* material = scene->mMaterials[i];  
-        textureList[i] = nullptr;  
+	for (size_t i = 0; i < M; i++) {
+		aiMaterial* material = scene->mMaterials[i];
 
-        if (material->GetTextureCount(aiTextureType_DIFFUSE)) {  
-            aiString path;  
-            if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {  
-                std::string texPath = "Textures/" + std::string(path.C_Str());  
-                auto texture = std::make_unique<Texture>(texPath);  
-                if (!texture->LoadTexture()) {  
-                    texture->LoadTextureA();  
-                }  
-                textureList[i] = std::move(texture);  
-            }  
-        }  
-        if (!textureList[i]) {  
-            auto defaultTex = std::make_unique<Texture>("Textures/plain.png");  
-            defaultTex->LoadTextureA();  
-            textureList[i] = std::move(defaultTex);  
-        }  
-        if (material->GetTextureCount(aiTextureType_SPECULAR)) {  
-            aiString path;  
-            if (material->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {  
-                std::string texPath = "Textures/" + std::string(path.C_Str());  
-                auto texture = std::make_unique<Texture>(texPath);  
-                if (!texture->LoadTexture()) {  
-                    texture->LoadTextureA();  
-                }  
-                specularMapList[i] = std::move(texture);  
-            }  
-        }  
-        if (!specularMapList[i]) {  
-            auto defaultTex = std::make_unique<Texture>("Textures/plain.png");  
-            defaultTex->LoadTextureA();  
-            specularMapList[i] = std::move(defaultTex);  
-        }  
-        // Create Material List  
-        auto mat = std::make_unique<Material>();  
-        mat->SetSpecularMap(specularMapList[i].get()); // Fix: Use .get() to pass raw pointer  
-        materialList.push_back(std::move(mat));  
-    }  
+		// — diffuse texture —
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+			aiString path;
+			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
+				std::string fullPath = "Textures/" + std::string(path.C_Str());
+				auto tex = std::make_unique<Texture>(fullPath);
+				if (!tex->LoadTexture()) {
+					tex->LoadTextureA();
+				}
+				textureList[i] = std::move(tex);
+			}
+		}
+		// fallback
+		if (!textureList[i]) {
+			auto def = std::make_unique<Texture>("Textures/plain.png");
+			def->LoadTextureA();
+			textureList[i] = std::move(def);
+		}
+
+		// — specular texture —
+		if (material->GetTextureCount(aiTextureType_SPECULAR) > 0) {
+			aiString path;
+			if (material->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {
+				std::string fullPath = "Textures/" + std::string(path.C_Str());
+				auto tex = std::make_unique<Texture>(fullPath);
+				if (!tex->LoadTexture()) {
+					tex->LoadTextureA();
+				}
+				specularMapList[i] = std::move(tex);
+			}
+		}
+		// fallback
+		if (!specularMapList[i]) {
+			auto def = std::make_unique<Texture>("Textures/plain.png");
+			def->LoadTextureA();
+			specularMapList[i] = std::move(def);
+		}
+
+		// — build the Material —
+		auto mat = std::make_unique<Material>();
+		mat->SetSpecularMap(specularMapList[i].get());
+
+		// you already resized, so assign by index
+		materialList[i] = std::move(mat);
+	}
 }
+
 
 void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
 {

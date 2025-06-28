@@ -25,7 +25,6 @@ public:
 	Skybox(std::vector<std::string> faceLocations);
 	void ConvertEquirectangularToCubeMap();
 	void DrawSkybox(glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
-	GLuint GetSkyboxTextureID() const { return textureID; }
 	~Skybox();
 
 private:

@@ -99,7 +99,7 @@ void Model::LoadMaterials(const aiScene* scene)
         // Create Material List  
         auto mat = std::make_unique<Material>();  
         mat->SetSpecularMap(specularMapList[i].get()); // Fix: Use .get() to pass raw pointer  
-        materialList.push_back(std::move(mat));  
+		materialList[i] = std::move(mat);
     }  
 }
 

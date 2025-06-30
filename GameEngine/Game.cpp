@@ -832,6 +832,21 @@ void Game::CreateShaders() {
 
 	depthOfFieldShader = Shader();
 	depthOfFieldShader.CreateFromFiles("Shaders/fullScreen_vert.glsl", "Shaders/depth_field_frag.glsl");
+
+	shaderList[0]->UseShader();
+
+	uniformEyePosition = shaderList[0]->GetEyePositionLocation();
+	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
+	uniformShininess = shaderList[0]->GetShininessLocation();
+
+	uniformSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "specularMap");
+	uniformUseSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "useSpecularMap");
+
+	uniformUseReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "useReflectivity");
+	uniformReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "reflectivity");
+
+	uniformSkyBox = glGetUniformLocation(shaderList[0]->GetShaderID(), "skybox");
+
 }
 void Game::DirectionalShadowPass(DirectionalLight* light) {
 	directionalShadowShader.UseShader();
@@ -887,9 +902,6 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	uniformModel = shaderList[0]->GetModelLocation();
 	uniformProjection = shaderList[0]->GetProjectionLocation();
 	uniformView = shaderList[0]->GetViewLocation();
-	uniformEyePosition = shaderList[0]->GetEyePositionLocation();
-	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
-	uniformShininess = shaderList[0]->GetShininessLocation();
 
 	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));

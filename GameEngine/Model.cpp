@@ -98,7 +98,8 @@ void Model::LoadMaterials(const aiScene* scene)
 			specularMapList[i] = std::move(defaultTex);  
 		}  
 		// Create Material List  
-		auto mat = std::make_unique<Material>();  
+		auto mat = std::make_unique<Material>(); 
+		mat->SetDiffuseMap(textureList[i].get());
 		mat->SetSpecularMap(specularMapList[i].get()); 
 		materialList[i] = std::move(mat);
 	}  
@@ -117,9 +118,6 @@ void Model::RenderModel(GLuint specularMapLocation,
 		unsigned int materialIndex = meshToTex[i];
 		if (materialIndex < materialList.size()) {
 			materialList[materialIndex]->UseMaterial(specularMapLocation, usesSpecularMapLocation, reflectivityLocation, usesReflectionsLocation, skyboxLocation, skyboxTextureID);
-		}
-		if (materialIndex < textureList.size() && textureList[materialIndex]) {
-			textureList[materialIndex]->UseTexture();
 		}
 
 		meshList[i]->RenderMesh();

@@ -12,10 +12,15 @@ public:
 	void UseMaterial(GLuint specularIntensityLocation, GLuint shininessLocation);
 	void UseMaterial(GLuint specularMapLocation, GLuint usesSpecularMapLocation, GLuint reflectivityLocation, GLuint usesReflectionsLocation, GLuint skyboxLocation, GLuint skyboxTextureID);
 
+	void SetDiffuseMap(Texture* diffuseMap) {
+		this->diffuseMap = diffuseMap;
+	}
+
 	void SetSpecularMap(Texture* specularMap){
 		this->specularMap = specularMap;
 		this->usesSpecularMap = (this->specularMap != nullptr);
 	}
+
 
 	~Material();
 
@@ -23,6 +28,7 @@ private:
 	GLfloat specularIntensity;
 	GLfloat shininess;
 	Texture* specularMap;
+	Texture* diffuseMap;
 	bool usesSpecularMap;
 	bool usesReflections;
 	GLfloat reflectivity = 1.0f;

@@ -40,7 +40,12 @@ void Material::UseMaterial(
 		// turn the map off (shader will skip sampling)
 		glUniform1i(usesSpecularMapLocation, 0);
 	}
-
+	if (diffuseMap) {
+		diffuseMap->UseTexture();
+	}
+	else {
+		std::cout << "No diffuse map set for material!" << std::endl;
+	}
 	glActiveTexture(GL_TEXTURE0 + 5);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTextureID);
 	glUniform1i(skyboxLocation, 5);

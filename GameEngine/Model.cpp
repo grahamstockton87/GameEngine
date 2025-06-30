@@ -56,51 +56,52 @@ void Model::LoadModel(const std::string fileName)
 }
 void Model::LoadMaterials(const aiScene* scene)  
 {  
-    textureList.resize(scene->mNumMaterials);  
-    specularMapList.resize(scene->mNumMaterials);  
-    materialList.resize(scene->mNumMaterials);  
+	textureList.resize(scene->mNumMaterials);  
+	specularMapList.resize(scene->mNumMaterials);  
+	materialList.resize(scene->mNumMaterials);  
 
-    for (size_t i = 0; i < scene->mNumMaterials; i++) {  
-        aiMaterial* material = scene->mMaterials[i];  
-        textureList[i] = nullptr;  
+	for (size_t i = 0; i < scene->mNumMaterials; i++) {  
+		aiMaterial* material = scene->mMaterials[i];  
+		textureList[i] = nullptr;  
 
-        if (material->GetTextureCount(aiTextureType_DIFFUSE)) {  
-            aiString path;  
-            if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {  
-                std::string texPath = "Textures/" + std::string(path.C_Str());  
-                auto texture = std::make_unique<Texture>(texPath);  
-                if (!texture->LoadTexture()) {  
-                    texture->LoadTextureA();  
-                }  
-                textureList[i] = std::move(texture);  
-            }  
-        }  
-        if (!textureList[i]) {  
-            auto defaultTex = std::make_unique<Texture>("Textures/plain.png");  
-            defaultTex->LoadTextureA();  
-            textureList[i] = std::move(defaultTex);  
-        }  
-        if (material->GetTextureCount(aiTextureType_SPECULAR)) {  
-            aiString path;  
-            if (material->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {  
-                std::string texPath = "Textures/" + std::string(path.C_Str());  
-                auto texture = std::make_unique<Texture>(texPath);  
-                if (!texture->LoadTexture()) {  
-                    texture->LoadTextureA();  
-                }  
-                specularMapList[i] = std::move(texture);  
-            }  
-        }  
-        if (!specularMapList[i]) {  
-            auto defaultTex = std::make_unique<Texture>("Textures/plain.png");  
-            defaultTex->LoadTextureA();  
-            specularMapList[i] = std::move(defaultTex);  
-        }  
-        // Create Material List  
-        auto mat = std::make_unique<Material>();  
-        mat->SetSpecularMap(specularMapList[i].get()); // Fix: Use .get() to pass raw pointer  
+		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {  
+			aiString path;  
+			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {  
+				std::string texPath = "Textures/" + std::string(path.C_Str());  
+				auto texture = std::make_unique<Texture>(texPath);  
+				if (!texture->LoadTexture()) {  
+					texture->LoadTextureA();  
+				}  
+				textureList[i] = std::move(texture);  
+			}  
+		}  
+		if (!textureList[i]) {  
+			auto defaultTex = std::make_unique<Texture>("Textures/white.jpg");  
+			defaultTex->LoadTexture();  
+			textureList[i] = std::move(defaultTex);  
+			//std::cout << "No texture found for material " << i << ", using default white texture." << std::endl;
+		}  
+		if (material->GetTextureCount(aiTextureType_SPECULAR)) {  
+			aiString path;  
+			if (material->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {  
+				std::string texPath = "Textures/" + std::string(path.C_Str());  
+				auto texture = std::make_unique<Texture>(texPath);  
+				if (!texture->LoadTextureA()) {  
+					texture->LoadTexture();  
+				}  
+				specularMapList[i] = std::move(texture);  
+			}  
+		}  
+		if (!specularMapList[i]) {  
+			auto defaultTex = std::make_unique<Texture>("Textures/white.jpg");  
+			defaultTex->LoadTexture();  
+			specularMapList[i] = std::move(defaultTex);  
+		}  
+		// Create Material List  
+		auto mat = std::make_unique<Material>();  
+		mat->SetSpecularMap(specularMapList[i].get()); 
 		materialList[i] = std::move(mat);
-    }  
+	}  
 }
 
 
@@ -120,6 +121,7 @@ void Model::RenderModel(GLuint specularMapLocation,
 		if (materialIndex < textureList.size() && textureList[materialIndex]) {
 			textureList[materialIndex]->UseTexture();
 		}
+
 		meshList[i]->RenderMesh();
 	}
 }

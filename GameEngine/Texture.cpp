@@ -23,7 +23,7 @@ bool Texture::LoadTextureA()
 {
 	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 4);
 	if (!texData) {
-		printf("Failed to find: %s\n", fileLocation);
+		printf("Failed to load A: %s\n", fileLocation.c_str());
 		return false;
 	}
 	glGenTextures(1, &textureID);
@@ -39,6 +39,15 @@ bool Texture::LoadTextureA()
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+	// optional: check for GL errors
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) {
+		printf("GL error 0x%X on texture upload: %s\n", err, fileLocation.c_str());
+		glBindTexture(GL_TEXTURE_2D, 0);
+		stbi_image_free(texData);
+		return false;
+	}
+
 	stbi_image_free(texData);
 	return true;
 }
@@ -46,7 +55,7 @@ bool Texture::LoadTexture()
 {
 	unsigned char* texData = stbi_load(fileLocation.c_str(), &width, &height, &bitDepth, 0);
 	if (!texData) {
-		std::cerr << "[Texture::LoadTexture] Failed to load texture: " << fileLocation << std::endl;
+		printf("Failed to load: %s\n", fileLocation.c_str());
 		return false;
 	}
 	glGenTextures(1, &textureID);
@@ -61,6 +70,16 @@ bool Texture::LoadTexture()
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// optional: check for GL errors
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) {
+		printf("GL error 0x%X on texture upload: %s\n", err, fileLocation.c_str());
+		glBindTexture(GL_TEXTURE_2D, 0);
+		stbi_image_free(texData);
+		return false;
+	}
+
 
 	stbi_image_free(texData);
 	return true;

@@ -101,9 +101,6 @@ bool Game::Initialize() {
 	brickTexture = Texture("Textures/brick.png");
 	brickTexture.LoadTextureA();
 
-	transparent = Texture("Textures/transparent.png");
-	transparent.LoadTextureA();
-
 	tile = Texture("Textures/tile.png");
 	tile.LoadTexture();
 

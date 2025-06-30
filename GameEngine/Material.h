@@ -25,6 +25,6 @@ private:
 	Texture* specularMap;
 	bool usesSpecularMap;
 	bool usesReflections;
-	GLfloat reflectivity = 0.2f;
+	GLfloat reflectivity = 1.0f;
 };
 

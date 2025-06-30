@@ -39,6 +39,8 @@ uniform bool              useSpecularMap;
 uniform float             reflectivity;
 uniform bool              useReflectivity;
 
+vec3 finalColor;
+
 const vec3 disk[OMNI_SAMPLES] = vec3[](
     vec3(1,1,0), vec3(-1,1,0), vec3(1,-1,0), vec3(-1,-1,0),
     vec3(1,0,1), vec3(-1,0,1), vec3(1,0,-1), vec3(-1,0,-1)
@@ -91,16 +93,16 @@ vec3 CalcSingleLight(Light light, vec3 L, float shadowFactor) {
     vec3 diffuse = light.color * light.diffuseIntensity * diff;
     vec3 specular = vec3(0.0);
 
-    if (diff > 0.0) {
+ //   if (diff > 0.0) {
         if (useSpecularMap) {
             float specIntensityFromMap = texture(specularMap, TexCoord).r * 128.0;
             float spec = pow(max(dot(V, R), 0.0), 128.0);
             specular = light.color * spec * specIntensityFromMap;
         } else {
-            float spec = pow(max(dot(V, R), 0.0), material.shininess);
+           float spec = pow(max(dot(V, R), 0.0), material.shininess);
             specular = light.color * material.specularIntensity * spec;
         }
-    }
+   // }
 
     return ambient + (1.0 - shadowFactor) * (diffuse + specular);
 }
@@ -108,7 +110,6 @@ vec3 CalcSingleLight(Light light, vec3 L, float shadowFactor) {
 // ---- MAIN ----
 void main() {
     vec4 tex = texture(theTexture, TexCoord);
-    if (tex.a < 0.01) discard;
 
     float dirShadow = CalcDirShadow();
     vec3 dirL = normalize(directionalLight.direction);
@@ -138,19 +139,23 @@ void main() {
 
 // --- base lit color (includes texture) ---
     vec3 baseColor = result * tex.rgb;
-
-    // --- compute reflection mask + lookup ---
-    vec3 I    = normalize(FragPos - eyePosition);
-    vec3 R    = reflect(I, normalize(Normal));
-    vec3 env  = texture(skybox, R).rgb;
-    vec3 mask = clamp(result, 0.0, 1.0);
-
-    // --- additive reflection ---
-    vec3 reflection = env * mask * reflectivity;
-
     // --- combine ---
-    vec3 finalColor = baseColor + reflection;
+    if (useReflectivity){
+        // --- compute reflection mask + lookup ---
+        vec3 I    = normalize(FragPos - eyePosition);
+        vec3 R    = reflect(I, normalize(Normal));
+        vec3 env  = texture(skybox, R).rgb;
+        vec3 mask = clamp(result, 0.0, 1.0);
 
+        // --- additive reflection ---
+        vec3 reflection = env * mask * reflectivity;
+        
+        finalColor = baseColor + reflection;
+
+    }else{
+        finalColor = baseColor;
+    }
+     
     // optional tone‐map/clamp so you don’t blow out >1.0
     finalColor = clamp(finalColor, 0.0, 1.0);
 

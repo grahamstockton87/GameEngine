@@ -5,14 +5,12 @@
 #include <cstddef>
 #include <GL/glew.h>
 
-
 Game::Game()
 {
 }
 Game::~Game()
 {
 }
-
 void Game::initDOF() {
 	screenW = mainWindow.getBufferWidth();
 	screenH = mainWindow.getBufferHeight();
@@ -444,7 +442,6 @@ bool Game::Initialize() {
 	initDOF();
 
 }
-
 void Game::Run() {
 	// Retrieve Motion Blur FBOs
 	const GLuint mbSceneFBO = mainWindow.GetMotionBlurFBO(0);
@@ -576,19 +573,13 @@ void Game::Run() {
 		);
 
 		glm::mat4 camViewMatrix = camera.calculateViewMatrix();
-		for (auto& m : meshList)
-			DrawBoundingBox(m->box, debugBox, perspProj, camViewMatrix);
+		//for (auto& m : meshList)
+		//	DrawBoundingBox(m->box, debugBox, perspProj, camViewMatrix);
 		//for (auto& mdl : modelList)
 		//	DrawBoundingBox(mdl->GetBox(), debugBox, perspProj, camViewMatrix);
 
 		//healthBar.CreateSprite();
-		//healthBar.Render(spriteShader, orthoProj);
-
-
-		
-		//handAnimationSprite.UpdateVertices(SpriteVertices, SpriteIndices);
-		//handAnimationSprite.CreateSprite();
-		//handAnimationSprite.Render(spriteShader, orthoProj);
+		healthBar.Render(spriteShader, orthoProj);
 
 		handAnimation.Render(spriteShader, orthoProj);
 
@@ -603,7 +594,6 @@ void Game::Run() {
 		firstFrame = false;
 	}
 }
-
 void Game::updateFirstFrame() {
 	// On first frame, validate shadow shader
 	if (firstFrame) {
@@ -635,24 +625,7 @@ void Game::updateFirstFrame() {
 	// Clear the firstFrame flag after initial setup
 	firstFrame = false;
 }
-
-//if (debugDisplayMode == 0) {
-//	glBindTexture(GL_TEXTURE_2D, mainWindow.GetMotionBlurTexture(nextFBO));
-//	std::cout << "[BLEND] nextFBO\n";
-//}
-//else if (debugDisplayMode == 1) {
-//	glBindTexture(GL_TEXTURE_2D, mainWindow.motionBlurPrevTex);
-//	std::cout << "[PREV] motionBlurPrevTex\n";
-//}
-//else {
-//	glBindTexture(GL_TEXTURE_2D, mainWindow.GetMotionBlurTexture(currentFBO));
-//	std::cout << "[CURR] currentFBO\n";
-//}
-
 void Game::Update() {
-
-
-
 	// Update camera position and other camera-related variables
 	camera.previousPosition = camera.position;
 
@@ -796,6 +769,7 @@ void Game::RenderScene() {
 
 }
 void Game::CreateShaders() {
+
 	Shader* shader1 = new Shader();
 	shader1->CreateFromFiles(vShader, fShader);
 	shaderList.push_back(shader1);
@@ -853,9 +827,6 @@ void Game::CreateShaders() {
 	uniformReflectivity = glGetUniformLocation(shaderID, "reflectivity");
 
 	uniformSkyBox = glGetUniformLocation(shaderID, "skybox");
-
-
-
 }
 void Game::DirectionalShadowPass(DirectionalLight* light) {
 	directionalShadowShader.UseShader();
@@ -901,7 +872,6 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 
 	//skybox.DrawSkybox(viewMatrix, projectionMatrix);
 	forestSkybox.DrawSkybox(viewMatrix, projectionMatrix);
-
 
 	shaderList[0]->UseShader();
 
@@ -1046,7 +1016,6 @@ void Game::Shoot()
 		handAnimation.Reset(); // Reset hand animation when not clicking
 	}
 }
-
 void Game::CalcAverageNormals(unsigned int* indices, unsigned int indicieCount, GLfloat* vertices, unsigned int verticeCount, unsigned int vLength, unsigned int normalOffset) {
 	for (size_t i = 0; i < indicieCount; i += 3) {
 		unsigned int in0 = indices[i] * vLength;

@@ -5,7 +5,7 @@ Material::Material()
 {
 	specularIntensity = 128.0f;
 	shininess = 128.0f;
-	usesReflections = true;
+	usesReflections = false;
 }
 
 Material::Material(GLfloat sIntensity, GLfloat shine)
@@ -31,14 +31,16 @@ void Material::UseMaterial(
 	// — specular map —
 	if (usesSpecularMap && specularMap->GetTextureID() != 0) {
 		// bind the texture object to unit 3
-		glActiveTexture(GL_TEXTURE0 + 3);
+		glActiveTexture(GL_TEXTURE0 + 2);
 		glBindTexture(GL_TEXTURE_2D, specularMap->GetTextureID());
 		// turn the map on
-		glUniform1i(usesSpecularMapLocation, 1);
+		glUniform1i(specularMapLocation, 2);
+		glUniform1i(usesSpecularMapLocation, 3);
 	}
 	else {
 		// turn the map off (shader will skip sampling)
 		glUniform1i(usesSpecularMapLocation, 0);
+		std::cout << "No specular map set for material!" << specularMap->GetTextureID() << std::endl;
 	}
 	if (diffuseMap) {
 		diffuseMap->UseTexture();

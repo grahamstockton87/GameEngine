@@ -93,16 +93,16 @@ vec3 CalcSingleLight(Light light, vec3 L, float shadowFactor) {
     vec3 diffuse = light.color * light.diffuseIntensity * diff;
     vec3 specular = vec3(0.0);
 
- //   if (diff > 0.0) {
-        if (useSpecularMap) {
-            float specIntensityFromMap = texture(specularMap, TexCoord).r * 128.0;
-            float spec = pow(max(dot(V, R), 0.0), 128.0);
-            specular = light.color * spec * specIntensityFromMap;
-        } else {
-           float spec = pow(max(dot(V, R), 0.0), material.shininess);
-            specular = light.color * material.specularIntensity * spec;
-        }
-   // }
+    if (useSpecularMap) {
+        // make sure specularMap was bound to the correct unit!
+        float mapVal = texture(specularMap, TexCoord).r;
+        float power  = material.shininess;            // drive exponent from your material
+        float spec   = pow(max(dot(V, R), 0.0), power);
+        specular     = light.color * material.specularIntensity * spec * mapVal;
+    } else {
+        float spec   = pow(max(dot(V, R), 0.0), material.shininess);
+        specular     = light.color * material.specularIntensity * spec;
+    }
 
     return ambient + (1.0 - shadowFactor) * (diffuse + specular);
 }
@@ -158,6 +158,5 @@ void main() {
      
     // optional tone‐map/clamp so you don’t blow out >1.0
     finalColor = clamp(finalColor, 0.0, 1.0);
-
     color = vec4(finalColor, tex.a);
 }

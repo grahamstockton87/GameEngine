@@ -86,6 +86,8 @@ private:
 	Camera camera = Camera(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.5f, 20.0f, 5.0f, 45.0f);
 	glm::vec3 delta = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::mat4 projection;
+	glm::mat4 perspProj;
+	glm::mat4 orthoProj;
 
 	std::vector<std::unique_ptr<Mesh>> meshList;
 	std::vector<std::unique_ptr<Model>> modelList;

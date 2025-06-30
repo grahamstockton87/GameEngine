@@ -103,6 +103,34 @@ void Model::LoadMaterials(const aiScene* scene)
     }  
 }
 
+
+void Model::RenderModel(GLuint specularMapLocation,
+	GLuint usesSpecularMapLocation,
+	GLuint reflectivityLocation,
+	GLuint usesReflectionsLocation,
+	GLuint skyboxLocation,
+	GLuint skyboxTextureID)
+{
+	if (meshList.empty()) return;
+	for (size_t i = 0; i < meshList.size(); i++) {
+		unsigned int materialIndex = meshToTex[i];
+		if (materialIndex < materialList.size()) {
+			materialList[materialIndex]->UseMaterial(specularMapLocation, usesSpecularMapLocation, reflectivityLocation, usesReflectionsLocation, skyboxLocation, skyboxTextureID);
+		}
+		if (materialIndex < textureList.size() && textureList[materialIndex]) {
+			textureList[materialIndex]->UseTexture();
+		}
+		meshList[i]->RenderMesh();
+	}
+}
+void Model::RenderModel(Texture* tex)
+{
+	tex->UseTexture();
+	for (size_t i = 0; i < meshList.size(); i++) {
+		meshList[i]->RenderMesh();
+	}
+}
+
 void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
 {
 	for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
@@ -139,27 +167,6 @@ void Model::LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices)
 
 
 
-void Model::RenderModel(GLuint specularMapLocation, GLuint usesSpecularMap, GLuint reflectivityLocation, GLuint skyboxLocation, GLuint usesReflectionsLocation)
-{
-	if (meshList.empty()) return;
-	for (size_t i = 0; i < meshList.size(); i++) {
-		unsigned int materialIndex = meshToTex[i];
-		if (materialIndex <= materialList.size()) {
-			materialList[materialIndex]->UseMaterial(specularMapLocation, usesSpecularMap, reflectivityLocation, skyboxLocation, usesReflectionsLocation);
-		}
-		if (materialIndex < textureList.size() && textureList[materialIndex]) {
-			textureList[materialIndex]->UseTexture();
-		}
-		meshList[i]->RenderMesh();
-	}
-}
-void Model::RenderModel(Texture* tex)
-{
-	tex->UseTexture();
-	for (size_t i = 0; i < meshList.size(); i++) {
-		meshList[i]->RenderMesh();
-	}
-}
 
 
 

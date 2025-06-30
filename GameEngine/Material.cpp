@@ -19,36 +19,29 @@ void Material::UseMaterial(GLuint specularIntensityLocation, GLuint shininessLoc
 }
 
 void Material::UseMaterial(
-    GLuint specularMapLocation,
-    GLuint usesSpecularMapLocation,
-    GLuint reflectivityLocation,
-    GLuint skyboxLocation,
-    GLuint usesReflectionsLocation)
+	GLuint specularMapLocation,
+	GLuint usesSpecularMapLocation,
+	GLuint reflectivityLocation,
+	GLuint usesReflectionsLocation,
+	GLuint skyboxLocation,
+	GLuint skyboxTextureID)
 {
-    // — specular map —
-    if (specularMap) {
-        glActiveTexture(GL_TEXTURE0 + 3);
-        glBindTexture(GL_TEXTURE_2D, specularMap->GetTextureID());
-        glUniform1i(specularMapLocation, 3);
-        glUniform1i(usesSpecularMapLocation, 1);
-    }
-    else {
-        glUniform1i(usesSpecularMapLocation, 0);
-    }
+	// — specular map —
+	if (specularMap) {
+		glActiveTexture(GL_TEXTURE0 + 3);
+		glBindTexture(GL_TEXTURE_2D, specularMap->GetTextureID());
+		glUniform1i(specularMapLocation, 3);
+		glUniform1i(usesSpecularMapLocation, 1);
+	}
+	else {
+		glUniform1i(usesSpecularMapLocation, 0);
+	}
+	glActiveTexture(GL_TEXTURE0 + 5);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTextureID);
+	glUniform1i(skyboxLocation, 5);
+	glUniform1i(usesReflectionsLocation, 1);
 
-    // — skybox cubemap for reflections —
-    if (skybox) {
-        glActiveTexture(GL_TEXTURE0 + 5);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->GetSkyboxTextureID());
-        glUniform1i(skyboxLocation, 5);
-        glUniform1i(usesReflectionsLocation, 1);
-    }
-    else {
-        glUniform1i(usesReflectionsLocation, 0);
-    }
-
-    // — reflectivity (float!) —
-    glUniform1f(reflectivityLocation, reflectivity);
+	glUniform1f(reflectivityLocation, reflectivity);
 }
 
 

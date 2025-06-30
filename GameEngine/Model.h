@@ -57,7 +57,7 @@ public:
 
 	void LoadModel(const std::string fileName);
 	void LoadMeshBones(aiMesh* mesh, std::vector<Vertex>& vertices);
-	void RenderModel(GLuint specularMapLocation, GLuint usesSpecularMap, GLuint reflectivityLocation, GLuint skyboxLocation, GLuint usesReflectionsLocation);
+	void RenderModel(GLuint specularMapLocation, GLuint usesSpecularMapLocation, GLuint reflectivityLocation, GLuint usesReflectionsLocation, GLuint skyboxLocation, GLuint skyboxTextureID);
 	void RenderModel(Texture* tex);
 	void ClearModel();
 	void ResetModel();

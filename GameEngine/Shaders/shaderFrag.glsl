@@ -136,13 +136,23 @@ void main() {
         }
     }
 
-    // Reflection vector
-    vec3 I = normalize(FragPos - eyePosition);
-    vec3 R = reflect(I, normalize(Normal));
-    vec3 envColor = texture(skybox, R).rgb;
+// --- base lit color (includes texture) ---
+    vec3 baseColor = result * tex.rgb;
 
-    // Blend lighting + reflection
-    vec3 finalColor = mix(result * tex.rgb, envColor, reflectivity);
+    // --- compute reflection mask + lookup ---
+    vec3 I    = normalize(FragPos - eyePosition);
+    vec3 R    = reflect(I, normalize(Normal));
+    vec3 env  = texture(skybox, R).rgb;
+    vec3 mask = clamp(result, 0.0, 1.0);
+
+    // --- additive reflection ---
+    vec3 reflection = env * mask * reflectivity;
+
+    // --- combine ---
+    vec3 finalColor = baseColor + reflection;
+
+    // optional tone‐map/clamp so you don’t blow out >1.0
+    finalColor = clamp(finalColor, 0.0, 1.0);
 
     color = vec4(finalColor, tex.a);
 }

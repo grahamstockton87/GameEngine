@@ -478,8 +478,8 @@ void Game::Run() {
 		camera.updatePhysics(deltaTime);
 
 		// ----- 2) Prepare projections -----
-		glm::mat4 orthoProj = glm::ortho(0.f, float(screenW), 0.f, float(screenH));
-		glm::mat4 perspProj = glm::perspective(
+		orthoProj = glm::ortho(0.f, float(screenW), 0.f, float(screenH));
+		perspProj = glm::perspective(
 			glm::radians(camera.getFov()),
 			float(screenW) / float(screenH),
 			0.1f, 100.f
@@ -767,7 +767,7 @@ void Game::RenderScene() {
 
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(modelList[0]->model));
 
-		modelList[0]->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformSkyBox, uniformUseReflectivity);
+		modelList[0]->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformUseReflectivity, uniformSkyBox, forestSkybox.GetTextureID());
 	}
 
 	int columns = 2;
@@ -791,7 +791,7 @@ void Game::RenderScene() {
 			// draw
 			glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(box->model));
 			shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-			box->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformSkyBox, uniformUseReflectivity);
+			box->RenderModel(uniformSpecularMap, uniformUseSpecularMap, uniformReflectivity, uniformUseReflectivity, uniformSkyBox, forestSkybox.GetTextureID());
 		}
 	}
 
@@ -806,8 +806,17 @@ void Game::CreateShaders() {
 	directionalShadowShader = Shader();
 	directionalShadowShader.CreateFromFiles("Shaders/directional_shadow_map_vert.glsl", "Shaders/directional_shadow_map_frag.glsl");
 
+	directionalShadowShader.UseShader();
+	uniformModel = directionalShadowShader.GetModelLocation();
+
 	omniShadowShader = Shader();
 	omniShadowShader.CreateFromFiles("Shaders/omni_shadow_map_vert.glsl", "Shaders/omni_shadow_map_geom.glsl", "Shaders/omni_shadow_map_frag.glsl");
+
+	omniShadowShader.UseShader();
+
+	uniformModel = omniShadowShader.GetModelLocation();
+	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
+	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
 
 	debugBox = Shader();
 	debugBox.CreateFromFiles("Shaders/debug_box_vert.glsl", "Shaders/debug_box_frag.glsl");
@@ -834,18 +843,21 @@ void Game::CreateShaders() {
 	depthOfFieldShader.CreateFromFiles("Shaders/fullScreen_vert.glsl", "Shaders/depth_field_frag.glsl");
 
 	shaderList[0]->UseShader();
+	GLuint shaderID = shaderList[0]->GetShaderID();
 
 	uniformEyePosition = shaderList[0]->GetEyePositionLocation();
 	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
 	uniformShininess = shaderList[0]->GetShininessLocation();
 
-	uniformSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "specularMap");
-	uniformUseSpecularMap = glGetUniformLocation(shaderList[0]->GetShaderID(), "useSpecularMap");
+	uniformSpecularMap = glGetUniformLocation(shaderID, "specularMap");
+	uniformUseSpecularMap = glGetUniformLocation(shaderID, "useSpecularMap");
 
-	uniformUseReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "useReflectivity");
-	uniformReflectivity = glGetUniformLocation(shaderList[0]->GetShaderID(), "reflectivity");
+	uniformUseReflectivity = glGetUniformLocation(shaderID, "useReflectivity");
+	uniformReflectivity = glGetUniformLocation(shaderID, "reflectivity");
 
-	uniformSkyBox = glGetUniformLocation(shaderList[0]->GetShaderID(), "skybox");
+	uniformSkyBox = glGetUniformLocation(shaderID, "skybox");
+
+
 
 }
 void Game::DirectionalShadowPass(DirectionalLight* light) {
@@ -856,7 +868,6 @@ void Game::DirectionalShadowPass(DirectionalLight* light) {
 	light->GetShadowMap()->Write();
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	uniformModel = directionalShadowShader.GetModelLocation();
 	glm::mat4 lightTransform = light->CalculateLightTransform();
 	directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
 
@@ -873,10 +884,6 @@ void Game::OmniShadowMapPass(PointLight* light) {
 
 	light->GetShadowMap()->Write();
 	glClear(GL_DEPTH_BUFFER_BIT);
-
-	uniformModel = omniShadowShader.GetModelLocation();
-	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
-	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
 
 	glUniform3f(uniformOmniLightPos, light->GetPosition().x, light->GetPosition().y, light->GetPosition().z);
 	glUniform1f(uniformFarPlane, light->GetFarPlane());
@@ -898,12 +905,14 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	//skybox.DrawSkybox(viewMatrix, projectionMatrix);
 	forestSkybox.DrawSkybox(viewMatrix, projectionMatrix);
 
+
 	shaderList[0]->UseShader();
+
 	uniformModel = shaderList[0]->GetModelLocation();
 	uniformProjection = shaderList[0]->GetProjectionLocation();
 	uniformView = shaderList[0]->GetViewLocation();
 
-	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(perspProj));
 	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 	glUniform3f(uniformEyePosition, camera.getCameraPostion().x, camera.getCameraPostion().y, camera.getCameraPostion().z);
 

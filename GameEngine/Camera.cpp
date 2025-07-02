@@ -97,7 +97,7 @@ void Camera::keyControl(bool* keys, GLfloat deltaTime)
 	}
 
 	if (keys[GLFW_KEY_SPACE] && isGrounded) {
-		verticalVelocity = 10.0f;
+		verticalVelocity = 100.0f;
 		isGrounded = false;
 	}
 
@@ -136,10 +136,9 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange, GLfloat yScrollChang
 void Camera::updatePhysics(GLfloat deltaTime)
 {
 	const float epsilon = 0.01f;
-
 	if (!isGrounded) {
-		verticalVelocity += gravity * deltaTime;
-		position.y += verticalVelocity * deltaTime + 0.5f * gravity * deltaTime * deltaTime;
+		verticalVelocity += gravity;
+		position.y += verticalVelocity;
 
 		// Floor clamp (failsafe if we fall through)
 		if (position.y < groundLevel + radiusY - epsilon) {
@@ -152,6 +151,7 @@ void Camera::updatePhysics(GLfloat deltaTime)
 		// Player is grounded — keep them pinned
 		verticalVelocity = 0.0f;
 		position.y = groundLevel + radiusY;
+		std::cout << "Grounded at: " << position.y << std::endl;
 	}
 }
 

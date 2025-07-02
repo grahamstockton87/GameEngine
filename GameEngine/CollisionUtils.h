@@ -10,47 +10,40 @@
 #include <iostream>
 
 
+#include <execution> // C++17
+
+#include <algorithm> // Include for std::for_each
+
 inline std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
 	std::vector<Triangle> triangles;
-
 	if (!mesh || mesh->mNumOfVertices == 0 || mesh->mNumOfIndices == 0 || !mesh->mVertices || !mesh->mIndices)
 		return triangles;
 
 	const unsigned int floatsPerVertex = 8;
-	const unsigned int totalFloatCount = mesh->mNumOfVertices * floatsPerVertex;
 	glm::mat4 model = mesh->GetModel();
+	unsigned int numTris = mesh->mNumOfIndices / 3;
+	triangles.resize(numTris);
 
-	for (unsigned int i = 0; i + 2 < mesh->mNumOfIndices; i += 3) {
-		unsigned int i0 = mesh->mIndices[i];
-		unsigned int i1 = mesh->mIndices[i + 1];
-		unsigned int i2 = mesh->mIndices[i + 2];
-
-		if (i0 >= mesh->mNumOfVertices || i1 >= mesh->mNumOfVertices || i2 >= mesh->mNumOfVertices) {
-			std::cerr << "Invalid vertex index at triangle " << i / 3 << ": " << i0 << ", " << i1 << ", " << i2 << "\n";
-			continue;
-		}
+	// Replace std::execution::par with sequential execution as std::execution::par requires parallel algorithms support
+	std::for_each(triangles.begin(), triangles.end(), [&](Triangle& tri) {
+		unsigned int i = &tri - &triangles[0];
+		unsigned int idx = i * 3;
+		unsigned int i0 = mesh->mIndices[idx];
+		unsigned int i1 = mesh->mIndices[idx + 1];
+		unsigned int i2 = mesh->mIndices[idx + 2];
 
 		unsigned int offset0 = i0 * floatsPerVertex;
 		unsigned int offset1 = i1 * floatsPerVertex;
 		unsigned int offset2 = i2 * floatsPerVertex;
 
-		// Each vertex uses 3 position floats at [offset + 0, 1, 2]
-		if (offset0 + 2 >= totalFloatCount || offset1 + 2 >= totalFloatCount || offset2 + 2 >= totalFloatCount) {
-			std::cerr << "Vertex buffer overflow risk at triangle " << i / 3 << "\n";
-			continue;
-		}
-
 		glm::vec4 localPos0(mesh->mVertices[offset0], mesh->mVertices[offset0 + 1], mesh->mVertices[offset0 + 2], 1.0f);
 		glm::vec4 localPos1(mesh->mVertices[offset1], mesh->mVertices[offset1 + 1], mesh->mVertices[offset1 + 2], 1.0f);
 		glm::vec4 localPos2(mesh->mVertices[offset2], mesh->mVertices[offset2 + 1], mesh->mVertices[offset2 + 2], 1.0f);
 
-		Triangle tri;
 		tri.v0 = glm::vec3(model * localPos0);
 		tri.v1 = glm::vec3(model * localPos1);
 		tri.v2 = glm::vec3(model * localPos2);
-
-		triangles.push_back(tri);
-	}
+	});
 
 	return triangles;
 }
@@ -275,6 +268,7 @@ inline void CheckTriangleCollision(float& closestY, bool& hit, bool& hitSide, bo
 	}
 	if (foundGround && groundHitY > closestY) {
 		closestY = groundHitY;
+		//std::cout << "ClosetY = " << closestY << std::endl;
 		hit = true;
 	}
 	if (foundCeiling) {
@@ -306,10 +300,6 @@ inline void CheckBoxCollision(bool& hit, bool& hitSide, float& closestY, float g
 			hitSide = true;
 			return;
 		}
-
-		// Fallback to position-based restriction (legacy behavior)
-		glm::vec3 moveDelta = camera.position - camera.previousPosition;
-
 	}
 }
 // Projects the movement vector onto a plane defined by the wall normal

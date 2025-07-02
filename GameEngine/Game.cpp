@@ -466,10 +466,11 @@ void Game::Run() {
 		delta = camera.position - camera.previousPosition;
 		Update();
 		CheckCollision();
-		ProcessInput();
 		GroundPlayer();
-		Shoot();
+		ProcessInput();
 		camera.updatePhysics(deltaTime);
+		Shoot();
+
 
 		// ----- 2) Prepare projections -----
 		orthoProj = glm::ortho(0.f, float(screenW), 0.f, float(screenH));
@@ -677,9 +678,6 @@ void Game::ProcessInput()
 	camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), mainWindow.getYScrollChange(), mainWindow.getLeftClicked(), deltaTime);
 	camera.keyControl(mainWindow.getKeys(), deltaTime);
 	static bool keyHeld = false;
-	if (glfwGetKey(mainWindow.getWindow(), GLFW_KEY_M) == GLFW_PRESS) {
-
-	}
 
 }
 void Game::Update(float deltaTime)
@@ -789,6 +787,8 @@ void Game::CreateShaders() {
 	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
 	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
 
+	omniShadowShader.Validate();
+
 	debugBox = Shader();
 	debugBox.CreateFromFiles("Shaders/debug_box_vert.glsl", "Shaders/debug_box_frag.glsl");
 
@@ -815,6 +815,10 @@ void Game::CreateShaders() {
 
 	shaderList[0]->UseShader();
 	GLuint shaderID = shaderList[0]->GetShaderID();
+	
+	uniformModel = shaderList[0]->GetModelLocation();
+	uniformProjection = shaderList[0]->GetProjectionLocation();
+	uniformView = shaderList[0]->GetViewLocation();
 
 	uniformEyePosition = shaderList[0]->GetEyePositionLocation();
 	uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
@@ -857,8 +861,6 @@ void Game::OmniShadowMapPass(PointLight* light) {
 	glUniform1f(uniformFarPlane, light->GetFarPlane());
 	omniShadowShader.SetLightMatrices(light->CalculateLightTransform());
 
-	omniShadowShader.Validate();
-
 	RenderScene();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -874,10 +876,6 @@ void Game::RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix) {
 	forestSkybox.DrawSkybox(viewMatrix, projectionMatrix);
 
 	shaderList[0]->UseShader();
-
-	uniformModel = shaderList[0]->GetModelLocation();
-	uniformProjection = shaderList[0]->GetProjectionLocation();
-	uniformView = shaderList[0]->GetViewLocation();
 
 	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(perspProj));
 	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
@@ -1077,29 +1075,16 @@ void Game::GroundPlayer() {
 
 	// Handle ground collision
 	if (hit) {
-		float feet = camera.position.y - camera.radiusY;
-		float distanceToGround = feet - closestY;
-
-		if (distanceToGround < 0.1f) {
-			camera.isGrounded = true;
-			camera.groundLevel = closestY;
-			camera.position.y = closestY + camera.radiusY + groundSnapOffset;
-			camera.verticalVelocity = 0.0f;
-			return;
-		}
-	}
-
-	// Fallback: use anyGrounded flag if no direct ground hit
-	if (anyGrounded) {
 		camera.isGrounded = true;
-		camera.groundLevel = maxGroundLevel;
-		camera.position.y = camera.groundLevel + camera.radiusY;
+		camera.groundLevel = closestY;
+		camera.position.y = camera.groundLevel + groundSnapOffset;
 		camera.verticalVelocity = 0.0f;
 	}
 	else {
 		camera.isGrounded = false;
-		camera.groundLevel = 0.0f;
+		camera.groundLevel = maxGroundLevel;
 	}
+
 	if (hitSide) {
 		//std::cout << "Hit side wall!";
 		// 1) how far you tried to move

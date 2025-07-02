@@ -36,7 +36,7 @@ public:
 	float groundLevel = 0;
 
 	GLfloat verticalVelocity = 0.0f;
-	const GLfloat gravity = -20.0f; // Or tweak to your scale
+	const GLfloat gravity = -0.0001f; // Or tweak to your scale
 	const GLfloat terminalVelocity = 50.0f;
 
 	const float radiusX = 0.5f;    // Half-width (side-to-side)

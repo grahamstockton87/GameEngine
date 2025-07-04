@@ -5,7 +5,9 @@ struct Vertex {
     glm::vec3 Position;
     glm::vec3 Normal;
     glm::vec2 TexCoords;
-    // new:
+    glm::vec3 Tangent;    // New
+    glm::vec3 Bitangent;
+
     int     BoneIDs[4] = { 0, 0, 0, 0 };
     float   Weights[4] = { 0.f, 0.f, 0.f };
 

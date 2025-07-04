@@ -14,41 +14,6 @@
 
 #include <algorithm> // Include for std::for_each
 
-inline std::vector<Triangle> ExtractTrianglesFromMesh(const std::unique_ptr<Mesh>& mesh) {
-	std::vector<Triangle> triangles;
-	if (!mesh || mesh->mNumOfVertices == 0 || mesh->mNumOfIndices == 0 || !mesh->mVertices || !mesh->mIndices)
-		return triangles;
-
-	const unsigned int floatsPerVertex = 8;
-	glm::mat4 model = mesh->GetModel();
-	unsigned int numTris = mesh->mNumOfIndices / 3;
-	triangles.resize(numTris);
-
-	// Replace std::execution::par with sequential execution as std::execution::par requires parallel algorithms support
-	std::for_each(triangles.begin(), triangles.end(), [&](Triangle& tri) {
-		unsigned int i = &tri - &triangles[0];
-		unsigned int idx = i * 3;
-		unsigned int i0 = mesh->mIndices[idx];
-		unsigned int i1 = mesh->mIndices[idx + 1];
-		unsigned int i2 = mesh->mIndices[idx + 2];
-
-		unsigned int offset0 = i0 * floatsPerVertex;
-		unsigned int offset1 = i1 * floatsPerVertex;
-		unsigned int offset2 = i2 * floatsPerVertex;
-
-		glm::vec4 localPos0(mesh->mVertices[offset0], mesh->mVertices[offset0 + 1], mesh->mVertices[offset0 + 2], 1.0f);
-		glm::vec4 localPos1(mesh->mVertices[offset1], mesh->mVertices[offset1 + 1], mesh->mVertices[offset1 + 2], 1.0f);
-		glm::vec4 localPos2(mesh->mVertices[offset2], mesh->mVertices[offset2 + 1], mesh->mVertices[offset2 + 2], 1.0f);
-
-		tri.v0 = glm::vec3(model * localPos0);
-		tri.v1 = glm::vec3(model * localPos1);
-		tri.v2 = glm::vec3(model * localPos2);
-	});
-
-	return triangles;
-}
-
-
 inline bool RayIntersectsTriangle(const glm::vec3& rayOrigin,
 	const glm::vec3& rayDir,
 	const glm::vec3& v0,

@@ -15,7 +15,9 @@ public:
 	void SetDiffuseMap(Texture* diffuseMap) {
 		this->diffuseMap = diffuseMap;
 	}
-
+	void SetBumpMap(Texture* bumpMap) {
+		this->bumpMap = bumpMap;
+	}
 	void SetSpecularMap(Texture* specularMap){
 		this->specularMap = specularMap;
 		this->usesSpecularMap = (this->specularMap != nullptr);
@@ -29,6 +31,7 @@ private:
 	GLfloat shininess;
 	Texture* specularMap;
 	Texture* diffuseMap;
+	Texture* bumpMap;
 	bool usesSpecularMap;
 	bool usesReflections;
 	GLfloat reflectivity = 1.0f;

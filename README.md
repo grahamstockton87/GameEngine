@@ -1,1 +1,1 @@
-Game Engine | Graham Stockton
+Game Engine | Copyright Graham Stockton. All rights reserved.
